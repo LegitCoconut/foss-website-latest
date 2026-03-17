@@ -21,11 +21,11 @@ interface RequestEntry {
     createdAt: string;
 }
 
-const statusColors: Record<string, string> = {
-    pending: "bg-yellow-500/10 text-yellow-400 border-yellow-500/20",
-    approved: "bg-blue-500/10 text-blue-400 border-blue-500/20",
-    rejected: "bg-red-500/10 text-red-400 border-red-500/20",
-    completed: "bg-green-500/10 text-green-400 border-green-500/20",
+const statusVariant: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
+    pending: "outline",
+    approved: "secondary",
+    rejected: "destructive",
+    completed: "default",
 };
 
 export default function RequestsPage() {
@@ -73,19 +73,19 @@ export default function RequestsPage() {
     }
 
     return (
-        <div className="container mx-auto px-4 py-8 max-w-3xl">
-            <div className="mb-8">
-                <h1 className="text-3xl font-bold mb-2">Request Software</h1>
-                <p className="text-muted-foreground">
+        <div className="p-6 max-w-3xl space-y-6">
+            <div>
+                <h1 className="text-2xl font-bold tracking-tight">Request Software</h1>
+                <p className="text-sm text-muted-foreground mt-1">
                     Can&apos;t find what you need? Request it here
                 </p>
             </div>
 
             {/* Submit form */}
-            <Card className="border-white/10 bg-white/[0.03] mb-8">
-                <CardHeader>
-                    <CardTitle className="text-lg flex items-center gap-2">
-                        <MessageSquarePlus className="h-5 w-5 text-blue-400" />
+            <Card className="border-border/50">
+                <CardHeader className="pb-4">
+                    <CardTitle className="text-base font-semibold flex items-center gap-2">
+                        <MessageSquarePlus className="h-4 w-4 text-muted-foreground" />
                         New Request
                     </CardTitle>
                 </CardHeader>
@@ -98,7 +98,7 @@ export default function RequestsPage() {
                                 name="title"
                                 placeholder="e.g., Blender 4.0"
                                 required
-                                className="bg-white/5 border-white/10"
+                                className="bg-muted/50 border-border/50"
                             />
                         </div>
                         <div className="space-y-2">
@@ -108,7 +108,7 @@ export default function RequestsPage() {
                                 name="description"
                                 placeholder="Describe why this software would be useful..."
                                 required
-                                className="bg-white/5 border-white/10 min-h-[80px]"
+                                className="bg-muted/50 border-border/50 min-h-[80px]"
                             />
                         </div>
                         <div className="space-y-2">
@@ -117,14 +117,10 @@ export default function RequestsPage() {
                                 id="url"
                                 name="url"
                                 placeholder="https://..."
-                                className="bg-white/5 border-white/10"
+                                className="bg-muted/50 border-border/50"
                             />
                         </div>
-                        <Button
-                            type="submit"
-                            disabled={submitting}
-                            className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
-                        >
+                        <Button type="submit" disabled={submitting}>
                             {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                             Submit Request
                         </Button>
@@ -133,59 +129,61 @@ export default function RequestsPage() {
             </Card>
 
             {/* Request List */}
-            <h2 className="text-xl font-semibold mb-4">Your Requests</h2>
-            <div className="space-y-3">
-                {loading ? (
-                    <p className="text-muted-foreground text-sm">Loading...</p>
-                ) : requests.length === 0 ? (
-                    <Card className="border-white/10 bg-white/[0.03]">
-                        <CardContent className="p-8 text-center">
-                            <p className="text-muted-foreground">No requests yet</p>
-                        </CardContent>
-                    </Card>
-                ) : (
-                    requests.map((req) => (
-                        <Card key={req._id} className="border-white/10 bg-white/[0.03]">
-                            <CardContent className="p-4">
-                                <div className="flex items-start justify-between gap-3">
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-2 mb-1">
-                                            <h3 className="font-medium">{req.title}</h3>
-                                            <Badge className={statusColors[req.status] || ""}>
-                                                {req.status}
-                                            </Badge>
-                                        </div>
-                                        <p className="text-sm text-muted-foreground line-clamp-2">{req.description}</p>
-                                        {req.url && (
-                                            <a
-                                                href={req.url}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="inline-flex items-center gap-1 text-xs text-blue-400 hover:underline mt-1"
-                                            >
-                                                <ExternalLink className="h-3 w-3" />
-                                                Project Link
-                                            </a>
-                                        )}
-                                        {req.adminNotes && (
-                                            <>
-                                                <Separator className="my-2 bg-white/10" />
-                                                <p className="text-sm text-muted-foreground">
-                                                    <span className="font-medium text-foreground">Admin: </span>
-                                                    {req.adminNotes}
-                                                </p>
-                                            </>
-                                        )}
-                                    </div>
-                                    <span className="text-xs text-muted-foreground flex items-center gap-1 flex-shrink-0">
-                                        <Calendar className="h-3 w-3" />
-                                        {new Date(req.createdAt).toLocaleDateString()}
-                                    </span>
-                                </div>
+            <div>
+                <h2 className="text-lg font-semibold mb-4">Your Requests</h2>
+                <div className="space-y-3">
+                    {loading ? (
+                        <p className="text-muted-foreground text-sm">Loading...</p>
+                    ) : requests.length === 0 ? (
+                        <Card className="border-border/50">
+                            <CardContent className="p-8 text-center">
+                                <p className="text-muted-foreground text-sm">No requests yet</p>
                             </CardContent>
                         </Card>
-                    ))
-                )}
+                    ) : (
+                        requests.map((req) => (
+                            <Card key={req._id} className="border-border/50">
+                                <CardContent className="p-4">
+                                    <div className="flex items-start justify-between gap-3">
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <h3 className="font-medium text-sm">{req.title}</h3>
+                                                <Badge variant={statusVariant[req.status] || "outline"}>
+                                                    {req.status}
+                                                </Badge>
+                                            </div>
+                                            <p className="text-sm text-muted-foreground line-clamp-2">{req.description}</p>
+                                            {req.url && (
+                                                <a
+                                                    href={req.url}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground mt-1.5 transition-colors"
+                                                >
+                                                    <ExternalLink className="h-3 w-3" />
+                                                    Project Link
+                                                </a>
+                                            )}
+                                            {req.adminNotes && (
+                                                <>
+                                                    <Separator className="my-2" />
+                                                    <p className="text-sm text-muted-foreground">
+                                                        <span className="font-medium text-foreground">Admin: </span>
+                                                        {req.adminNotes}
+                                                    </p>
+                                                </>
+                                            )}
+                                        </div>
+                                        <span className="text-xs text-muted-foreground flex items-center gap-1 flex-shrink-0">
+                                            <Calendar className="h-3 w-3" />
+                                            {new Date(req.createdAt).toLocaleDateString()}
+                                        </span>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        ))
+                    )}
+                </div>
             </div>
         </div>
     );

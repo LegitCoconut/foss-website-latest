@@ -15,11 +15,10 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import {
     Package,
     Menu,
-    User,
     LogOut,
     LayoutDashboard,
     Shield,
-    Download,
+    MessageSquare,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -33,14 +32,17 @@ export function Navbar() {
     const [open, setOpen] = useState(false);
     const isAdmin = (session?.user as { role?: string })?.role === "admin";
 
+    // Hide the main navbar on admin pages (they have their own header)
+    if (pathname.startsWith("/admin")) return null;
+
     return (
-        <header className="sticky top-0 z-50 w-full border-b border-white/10 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60">
-            <div className="container mx-auto flex h-16 items-center justify-between px-4">
-                <Link href="/" className="flex items-center gap-2 group">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 transition-transform group-hover:scale-105">
-                        <Package className="h-5 w-5 text-white" />
+        <header className="sticky top-0 z-50 w-full border-b border-border/50 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60">
+            <div className="container mx-auto flex h-14 items-center justify-between px-4">
+                <Link href="/" className="flex items-center gap-2.5 group">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-foreground text-background transition-transform group-hover:scale-105">
+                        <Package className="h-4 w-4" />
                     </div>
-                    <span className="text-xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+                    <span className="text-sm font-semibold tracking-tight">
                         FOSS Hub
                     </span>
                 </Link>
@@ -51,9 +53,9 @@ export function Navbar() {
                         <Link
                             key={link.href}
                             href={link.href}
-                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${pathname === link.href
-                                    ? "bg-white/10 text-white"
-                                    : "text-muted-foreground hover:text-white hover:bg-white/5"
+                            className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${pathname === link.href
+                                ? "bg-muted text-foreground"
+                                : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
                                 }`}
                         >
                             {link.label}
@@ -62,12 +64,12 @@ export function Navbar() {
                 </nav>
 
                 {/* Desktop actions */}
-                <div className="hidden md:flex items-center gap-3">
+                <div className="hidden md:flex items-center gap-2">
                     {session?.user ? (
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="sm" className="gap-2">
-                                    <div className="h-7 w-7 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-xs font-bold text-white">
+                                <Button variant="ghost" size="sm" className="gap-2 h-8">
+                                    <div className="h-6 w-6 rounded-full bg-muted border border-border/50 flex items-center justify-center text-[10px] font-semibold text-foreground">
                                         {session.user.name?.[0]?.toUpperCase() || "U"}
                                     </div>
                                     <span className="text-sm">{session.user.name}</span>
@@ -82,7 +84,7 @@ export function Navbar() {
                                 </DropdownMenuItem>
                                 <DropdownMenuItem asChild>
                                     <Link href="/dashboard/requests" className="gap-2">
-                                        <Download className="h-4 w-4" />
+                                        <MessageSquare className="h-4 w-4" />
                                         My Requests
                                     </Link>
                                 </DropdownMenuItem>
@@ -98,7 +100,7 @@ export function Navbar() {
                                     </>
                                 )}
                                 <DropdownMenuSeparator />
-                                <DropdownMenuItem onClick={() => signOut()} className="gap-2 text-red-400">
+                                <DropdownMenuItem onClick={() => signOut()} className="gap-2 text-destructive focus:text-destructive">
                                     <LogOut className="h-4 w-4" />
                                     Sign Out
                                 </DropdownMenuItem>
@@ -106,14 +108,10 @@ export function Navbar() {
                         </DropdownMenu>
                     ) : (
                         <div className="flex items-center gap-2">
-                            <Button variant="ghost" size="sm" asChild>
+                            <Button variant="ghost" size="sm" asChild className="h-8">
                                 <Link href="/login">Sign In</Link>
                             </Button>
-                            <Button
-                                size="sm"
-                                asChild
-                                className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
-                            >
+                            <Button size="sm" asChild className="h-8">
                                 <Link href="/register">Get Started</Link>
                             </Button>
                         </div>
@@ -123,20 +121,20 @@ export function Navbar() {
                 {/* Mobile menu */}
                 <Sheet open={open} onOpenChange={setOpen}>
                     <SheetTrigger asChild className="md:hidden">
-                        <Button variant="ghost" size="icon">
-                            <Menu className="h-5 w-5" />
+                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <Menu className="h-4 w-4" />
                         </Button>
                     </SheetTrigger>
                     <SheetContent side="right" className="w-72">
-                        <nav className="flex flex-col gap-2 mt-6">
+                        <nav className="flex flex-col gap-1 mt-6">
                             {navLinks.map((link) => (
                                 <Link
                                     key={link.href}
                                     href={link.href}
                                     onClick={() => setOpen(false)}
-                                    className={`px-4 py-3 rounded-lg text-sm font-medium transition-colors ${pathname === link.href
-                                            ? "bg-white/10 text-white"
-                                            : "text-muted-foreground hover:text-white hover:bg-white/5"
+                                    className={`px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${pathname === link.href
+                                        ? "bg-muted text-foreground"
+                                        : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
                                         }`}
                                 >
                                     {link.label}
@@ -147,7 +145,7 @@ export function Navbar() {
                                     <Link
                                         href="/dashboard"
                                         onClick={() => setOpen(false)}
-                                        className="px-4 py-3 rounded-lg text-sm font-medium text-muted-foreground hover:text-white hover:bg-white/5"
+                                        className="px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50"
                                     >
                                         Dashboard
                                     </Link>
@@ -155,7 +153,7 @@ export function Navbar() {
                                         <Link
                                             href="/admin"
                                             onClick={() => setOpen(false)}
-                                            className="px-4 py-3 rounded-lg text-sm font-medium text-muted-foreground hover:text-white hover:bg-white/5"
+                                            className="px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50"
                                         >
                                             Admin Panel
                                         </Link>
@@ -165,7 +163,7 @@ export function Navbar() {
                                             signOut();
                                             setOpen(false);
                                         }}
-                                        className="px-4 py-3 rounded-lg text-sm font-medium text-red-400 hover:bg-white/5 text-left"
+                                        className="px-3 py-2.5 rounded-lg text-sm font-medium text-destructive hover:bg-muted/50 text-left"
                                     >
                                         Sign Out
                                     </button>
@@ -175,14 +173,14 @@ export function Navbar() {
                                     <Link
                                         href="/login"
                                         onClick={() => setOpen(false)}
-                                        className="px-4 py-3 rounded-lg text-sm font-medium text-muted-foreground hover:text-white hover:bg-white/5"
+                                        className="px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50"
                                     >
                                         Sign In
                                     </Link>
                                     <Link
                                         href="/register"
                                         onClick={() => setOpen(false)}
-                                        className="px-4 py-3 rounded-lg text-sm font-medium text-white bg-gradient-to-r from-blue-500 to-purple-600"
+                                        className="px-3 py-2.5 rounded-lg text-sm font-medium bg-primary text-primary-foreground text-center"
                                     >
                                         Get Started
                                     </Link>

@@ -1,30 +1,18 @@
 "use client";
 
 import { useState } from "react";
-import { signIn, useSession } from "next-auth/react";
+import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { LogIn, Loader2 } from "lucide-react";
+import { Shield, Loader2 } from "lucide-react";
 
-export default function LoginPage() {
+export default function AdminLoginPage() {
     const router = useRouter();
-    const { data: session } = useSession();
     const [loading, setLoading] = useState(false);
-
-    // If already logged in, redirect based on role
-    if (session?.user) {
-        const role = (session.user as { role?: string }).role;
-        if (role === "admin") {
-            router.push("/admin");
-        } else {
-            router.push("/dashboard");
-        }
-    }
 
     async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
         e.preventDefault();
@@ -42,18 +30,20 @@ export default function LoginPage() {
             });
 
             if (result?.error) {
-                toast.error("Invalid email or password");
+                toast.error("Invalid credentials");
             } else {
-                toast.success("Welcome back!");
-                // Fetch session to determine role
-                const res = await fetch("/api/auth/session");
-                const data = await res.json();
-                const role = data?.user?.role;
-                if (role === "admin") {
-                    router.push("/admin");
-                } else {
-                    router.push("/dashboard");
+                // Verify the user is actually an admin
+                const session = await fetch("/api/auth/session");
+                const data = await session.json();
+                if (data?.user?.role !== "admin") {
+                    toast.error("Access denied. Admin credentials required.");
+                    // Sign them out since they're not an admin
+                    await fetch("/api/auth/signout", { method: "POST" });
+                    setLoading(false);
+                    return;
                 }
+                toast.success("Welcome back, Admin");
+                router.push("/admin");
                 router.refresh();
             }
         } catch {
@@ -68,12 +58,12 @@ export default function LoginPage() {
             <Card className="w-full max-w-md border-border/50 bg-card/80 backdrop-blur-xl">
                 <CardHeader className="text-center space-y-3">
                     <div className="mx-auto h-12 w-12 rounded-xl bg-foreground/[0.08] border border-border/50 flex items-center justify-center">
-                        <LogIn className="h-5 w-5 text-foreground/70" />
+                        <Shield className="h-5 w-5 text-foreground/70" />
                     </div>
                     <div>
-                        <CardTitle className="text-2xl tracking-tight">Welcome Back</CardTitle>
+                        <CardTitle className="text-2xl tracking-tight">Admin Portal</CardTitle>
                         <CardDescription className="mt-1.5">
-                            Sign in to your FOSS Hub account
+                            Sign in with your administrator credentials
                         </CardDescription>
                     </div>
                 </CardHeader>
@@ -85,7 +75,7 @@ export default function LoginPage() {
                                 id="email"
                                 name="email"
                                 type="email"
-                                placeholder="you@example.com"
+                                placeholder="admin@example.com"
                                 required
                                 className="bg-muted/50 border-border/50"
                             />
@@ -110,12 +100,6 @@ export default function LoginPage() {
                             Sign In
                         </Button>
                     </form>
-                    <p className="text-center text-sm text-muted-foreground mt-6">
-                        Don&apos;t have an account?{" "}
-                        <Link href="/register" className="text-foreground font-medium hover:underline">
-                            Create one
-                        </Link>
-                    </p>
                 </CardContent>
             </Card>
         </div>

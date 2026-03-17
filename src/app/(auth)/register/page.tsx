@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Package, Loader2 } from "lucide-react";
+import { UserPlus, Loader2 } from "lucide-react";
 
 export default function RegisterPage() {
     const router = useRouter();
@@ -60,16 +60,17 @@ export default function RegisterPage() {
 
     return (
         <div className="min-h-[80vh] flex items-center justify-center px-4">
-            <div className="absolute inset-0 bg-gradient-to-br from-purple-600/10 via-transparent to-blue-600/10 pointer-events-none" />
-            <Card className="w-full max-w-md border-white/10 bg-white/[0.03] backdrop-blur-xl relative">
-                <CardHeader className="text-center space-y-2">
-                    <div className="mx-auto h-12 w-12 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center mb-2">
-                        <Package className="h-6 w-6 text-white" />
+            <Card className="w-full max-w-md border-border/50 bg-card/80 backdrop-blur-xl">
+                <CardHeader className="text-center space-y-3">
+                    <div className="mx-auto h-12 w-12 rounded-xl bg-foreground/[0.08] border border-border/50 flex items-center justify-center">
+                        <UserPlus className="h-5 w-5 text-foreground/70" />
                     </div>
-                    <CardTitle className="text-2xl">Create Account</CardTitle>
-                    <CardDescription>
-                        Sign up to download software from FOSS Hub
-                    </CardDescription>
+                    <div>
+                        <CardTitle className="text-2xl tracking-tight">Create Account</CardTitle>
+                        <CardDescription className="mt-1.5">
+                            Sign up to download software from FOSS Hub
+                        </CardDescription>
+                    </div>
                 </CardHeader>
                 <CardContent>
                     <form onSubmit={onSubmit} className="space-y-4">
@@ -80,7 +81,7 @@ export default function RegisterPage() {
                                 name="name"
                                 placeholder="Your name"
                                 required
-                                className="bg-white/5 border-white/10"
+                                className="bg-muted/50 border-border/50"
                             />
                         </div>
                         <div className="space-y-2">
@@ -91,7 +92,7 @@ export default function RegisterPage() {
                                 type="email"
                                 placeholder="you@example.com"
                                 required
-                                className="bg-white/5 border-white/10"
+                                className="bg-muted/50 border-border/50"
                             />
                         </div>
                         <div className="space-y-2">
@@ -102,7 +103,7 @@ export default function RegisterPage() {
                                 type="password"
                                 placeholder="••••••••"
                                 required
-                                className="bg-white/5 border-white/10"
+                                className="bg-muted/50 border-border/50"
                             />
                         </div>
                         <div className="space-y-2">
@@ -113,13 +114,13 @@ export default function RegisterPage() {
                                 type="password"
                                 placeholder="••••••••"
                                 required
-                                className="bg-white/5 border-white/10"
+                                className="bg-muted/50 border-border/50"
                             />
                         </div>
                         <Button
                             type="submit"
                             disabled={loading}
-                            className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
+                            className="w-full"
                         >
                             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                             Create Account
@@ -127,7 +128,7 @@ export default function RegisterPage() {
                     </form>
                     <p className="text-center text-sm text-muted-foreground mt-6">
                         Already have an account?{" "}
-                        <Link href="/login" className="text-blue-400 hover:underline">
+                        <Link href="/login" className="text-foreground font-medium hover:underline">
                             Sign in
                         </Link>
                     </p>

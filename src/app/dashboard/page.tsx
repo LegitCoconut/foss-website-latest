@@ -8,13 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Download, Package, MessageSquarePlus, Calendar } from "lucide-react";
-
-interface DownloadEntry {
-    softwareName: string;
-    versionNumber: string;
-    createdAt: string;
-}
+import { Package, MessageSquarePlus, Calendar } from "lucide-react";
 
 interface RequestEntry {
     _id: string;
@@ -23,16 +17,15 @@ interface RequestEntry {
     createdAt: string;
 }
 
-const statusColors: Record<string, string> = {
-    pending: "bg-yellow-500/10 text-yellow-400 border-yellow-500/20",
-    approved: "bg-blue-500/10 text-blue-400 border-blue-500/20",
-    rejected: "bg-red-500/10 text-red-400 border-red-500/20",
-    completed: "bg-green-500/10 text-green-400 border-green-500/20",
+const statusVariant: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
+    pending: "outline",
+    approved: "secondary",
+    rejected: "destructive",
+    completed: "default",
 };
 
 export default function DashboardPage() {
     const { data: session } = useSession();
-    const [downloads, setDownloads] = useState<DownloadEntry[]>([]);
     const [requests, setRequests] = useState<RequestEntry[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -47,39 +40,39 @@ export default function DashboardPage() {
     }, []);
 
     return (
-        <div className="container mx-auto px-4 py-8 max-w-4xl">
-            <div className="mb-8">
-                <h1 className="text-3xl font-bold mb-2">
+        <div className="p-6 space-y-6">
+            <div>
+                <h1 className="text-2xl font-bold tracking-tight">
                     Welcome, {session?.user?.name || "User"}
                 </h1>
-                <p className="text-muted-foreground">
+                <p className="text-sm text-muted-foreground mt-1">
                     Manage your downloads and software requests
                 </p>
             </div>
 
-            <div className="grid md:grid-cols-2 gap-4 mb-8">
+            <div className="grid md:grid-cols-2 gap-4">
                 <Link href="/catalog">
-                    <Card className="border-white/10 bg-white/[0.03] hover:bg-white/[0.06] transition cursor-pointer h-full">
-                        <CardContent className="p-6 flex items-center gap-4">
-                            <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center">
-                                <Package className="h-6 w-6 text-white" />
+                    <Card className="border-border/50 bg-card hover:bg-muted/50 transition cursor-pointer h-full">
+                        <CardContent className="p-5 flex items-center gap-4">
+                            <div className="h-10 w-10 rounded-lg bg-foreground/[0.08] border border-border/50 flex items-center justify-center">
+                                <Package className="h-5 w-5 text-foreground/70" />
                             </div>
                             <div>
-                                <h3 className="font-semibold">Browse Catalog</h3>
-                                <p className="text-sm text-muted-foreground">Find software to download</p>
+                                <h3 className="font-medium text-sm">Browse Catalog</h3>
+                                <p className="text-xs text-muted-foreground mt-0.5">Find software to download</p>
                             </div>
                         </CardContent>
                     </Card>
                 </Link>
                 <Link href="/dashboard/requests">
-                    <Card className="border-white/10 bg-white/[0.03] hover:bg-white/[0.06] transition cursor-pointer h-full">
-                        <CardContent className="p-6 flex items-center gap-4">
-                            <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
-                                <MessageSquarePlus className="h-6 w-6 text-white" />
+                    <Card className="border-border/50 bg-card hover:bg-muted/50 transition cursor-pointer h-full">
+                        <CardContent className="p-5 flex items-center gap-4">
+                            <div className="h-10 w-10 rounded-lg bg-foreground/[0.08] border border-border/50 flex items-center justify-center">
+                                <MessageSquarePlus className="h-5 w-5 text-foreground/70" />
                             </div>
                             <div>
-                                <h3 className="font-semibold">Request Software</h3>
-                                <p className="text-sm text-muted-foreground">Ask for new software</p>
+                                <h3 className="font-medium text-sm">Request Software</h3>
+                                <p className="text-xs text-muted-foreground mt-0.5">Ask for new software</p>
                             </div>
                         </CardContent>
                     </Card>
@@ -87,10 +80,10 @@ export default function DashboardPage() {
             </div>
 
             {/* Recent Requests */}
-            <Card className="border-white/10 bg-white/[0.03]">
-                <CardHeader className="flex flex-row items-center justify-between">
-                    <CardTitle className="text-lg">My Software Requests</CardTitle>
-                    <Button asChild variant="outline" size="sm" className="border-white/10">
+            <Card className="border-border/50">
+                <CardHeader className="flex flex-row items-center justify-between pb-4">
+                    <CardTitle className="text-base font-semibold">My Software Requests</CardTitle>
+                    <Button asChild variant="ghost" size="sm">
                         <Link href="/dashboard/requests">View All</Link>
                     </Button>
                 </CardHeader>
@@ -102,14 +95,14 @@ export default function DashboardPage() {
                             ))}
                         </div>
                     ) : requests.length === 0 ? (
-                        <div className="text-center py-8">
-                            <MessageSquarePlus className="h-10 w-10 mx-auto text-muted-foreground/30 mb-3" />
+                        <div className="text-center py-10">
+                            <MessageSquarePlus className="h-8 w-8 mx-auto text-muted-foreground/30 mb-3" />
                             <p className="text-sm text-muted-foreground">No requests yet</p>
                         </div>
                     ) : (
                         <Table>
                             <TableHeader>
-                                <TableRow className="border-white/10">
+                                <TableRow>
                                     <TableHead>Title</TableHead>
                                     <TableHead>Status</TableHead>
                                     <TableHead>Date</TableHead>
@@ -117,15 +110,15 @@ export default function DashboardPage() {
                             </TableHeader>
                             <TableBody>
                                 {requests.slice(0, 5).map((req) => (
-                                    <TableRow key={req._id} className="border-white/10">
+                                    <TableRow key={req._id}>
                                         <TableCell className="font-medium">{req.title}</TableCell>
                                         <TableCell>
-                                            <Badge className={statusColors[req.status] || ""}>
+                                            <Badge variant={statusVariant[req.status] || "outline"}>
                                                 {req.status}
                                             </Badge>
                                         </TableCell>
                                         <TableCell className="text-muted-foreground">
-                                            <div className="flex items-center gap-1">
+                                            <div className="flex items-center gap-1.5">
                                                 <Calendar className="h-3.5 w-3.5" />
                                                 {new Date(req.createdAt).toLocaleDateString()}
                                             </div>

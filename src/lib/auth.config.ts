@@ -23,11 +23,24 @@ export default {
             const isLoggedIn = !!auth?.user;
             const isOnDashboard = nextUrl.pathname.startsWith("/dashboard");
             const isOnAdmin = nextUrl.pathname.startsWith("/admin");
+            const isOnAdminLogin = nextUrl.pathname === "/admin/login";
             const isOnApiDownload = nextUrl.pathname.startsWith("/api/download");
             const isOnApiUpload = nextUrl.pathname.startsWith("/api/upload");
 
+            // Allow access to admin login page without auth
+            if (isOnAdminLogin) {
+                if (isLoggedIn) {
+                    const role = (auth?.user as { role?: string })?.role;
+                    if (role === "admin") {
+                        return Response.redirect(new URL("/admin", nextUrl));
+                    }
+                    return Response.redirect(new URL("/", nextUrl));
+                }
+                return true;
+            }
+
             if (isOnAdmin) {
-                if (!isLoggedIn) return false;
+                if (!isLoggedIn) return Response.redirect(new URL("/admin/login", nextUrl));
                 const role = (auth?.user as { role?: string })?.role;
                 if (role !== "admin") {
                     return Response.redirect(new URL("/", nextUrl));

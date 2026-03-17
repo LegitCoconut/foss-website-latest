@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { uploadFile } from "@/lib/s3";
+import { getPresignedUploadUrl } from "@/lib/s3";
 import crypto from "crypto";
 
 export async function POST(req: Request) {
@@ -10,39 +10,32 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
-        const formData = await req.formData();
-        const file = formData.get("file") as File;
+        const body = await req.json();
+        const { fileName, contentType } = body;
 
-        if (!file) {
-            return NextResponse.json({ error: "No file provided" }, { status: 400 });
+        if (!fileName) {
+            return NextResponse.json({ error: "fileName is required" }, { status: 400 });
         }
 
-        const bytes = await file.arrayBuffer();
-        const buffer = Buffer.from(bytes);
-
         // Generate unique key
-        const ext = file.name.split(".").pop() || "";
+        const ext = fileName.split(".").pop() || "";
         const key = `software/${crypto.randomUUID()}.${ext}`;
 
-        // Calculate SHA256 checksum
-        const hash = crypto.createHash("sha256").update(buffer).digest("hex");
-
-        await uploadFile(
+        // Generate presigned PUT URL for direct upload to S3
+        const uploadUrl = await getPresignedUploadUrl(
             process.env.S3_FILES_BUCKET!,
             key,
-            buffer,
-            file.type || "application/octet-stream"
+            contentType || "application/octet-stream",
+            600 // 10 minutes
         );
 
         return NextResponse.json({
+            uploadUrl,
             key,
-            fileName: file.name,
-            fileSize: buffer.length,
-            checksum: hash,
-            contentType: file.type,
+            fileName,
         });
     } catch (error) {
-        console.error("Upload error:", error);
+        console.error("Upload presign error:", error);
         return NextResponse.json(
             { error: "Internal server error" },
             { status: 500 }

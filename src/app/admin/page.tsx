@@ -42,29 +42,27 @@ export default function AdminDashboardPage() {
     if (!data) return null;
 
     const stats = [
-        { label: "Total Users", value: data.totalUsers, icon: Users, color: "from-blue-500 to-cyan-500" },
-        { label: "Downloads Today", value: data.downloadsToday, icon: Download, color: "from-green-500 to-emerald-500" },
-        { label: "Total Software", value: data.totalSoftware, icon: Package, color: "from-purple-500 to-pink-500" },
-        { label: "Pending Requests", value: data.pendingRequests, icon: MessageSquare, color: "from-orange-500 to-red-500" },
+        { label: "Total Users", value: data.totalUsers, icon: Users },
+        { label: "Downloads Today", value: data.downloadsToday, icon: Download },
+        { label: "Total Software", value: data.totalSoftware, icon: Package },
+        { label: "Pending Requests", value: data.pendingRequests, icon: MessageSquare },
     ];
 
     return (
         <div className="p-6 space-y-6">
-            <h1 className="text-2xl font-bold">Dashboard</h1>
+            <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
 
             {/* Stats */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 {stats.map((s) => (
-                    <Card key={s.label} className="border-white/10 bg-white/[0.03]">
+                    <Card key={s.label} className="border-border/50">
                         <CardContent className="p-5">
                             <div className="flex items-center justify-between mb-3">
-                                <div
-                                    className={`h-10 w-10 rounded-xl bg-gradient-to-br ${s.color} flex items-center justify-center`}
-                                >
-                                    <s.icon className="h-5 w-5 text-white" />
+                                <div className="h-9 w-9 rounded-lg bg-foreground/[0.08] border border-border/50 flex items-center justify-center">
+                                    <s.icon className="h-4 w-4 text-foreground/60" />
                                 </div>
                             </div>
-                            <p className="text-2xl font-bold">{s.value.toLocaleString()}</p>
+                            <p className="text-2xl font-bold tabular-nums">{s.value.toLocaleString()}</p>
                             <p className="text-xs text-muted-foreground mt-1">{s.label}</p>
                         </CardContent>
                     </Card>
@@ -72,10 +70,10 @@ export default function AdminDashboardPage() {
             </div>
 
             {/* Downloads Chart */}
-            <Card className="border-white/10 bg-white/[0.03]">
+            <Card className="border-border/50">
                 <CardHeader>
-                    <CardTitle className="text-lg flex items-center gap-2">
-                        <TrendingUp className="h-5 w-5 text-blue-400" />
+                    <CardTitle className="text-base font-semibold flex items-center gap-2">
+                        <TrendingUp className="h-4 w-4 text-muted-foreground" />
                         Downloads (Last 30 Days)
                     </CardTitle>
                 </CardHeader>
@@ -85,33 +83,34 @@ export default function AdminDashboardPage() {
                             <AreaChart data={data.downloadsOverTime}>
                                 <defs>
                                     <linearGradient id="colorDownloads" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
-                                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                                        <stop offset="5%" stopColor="hsl(var(--foreground))" stopOpacity={0.15} />
+                                        <stop offset="95%" stopColor="hsl(var(--foreground))" stopOpacity={0} />
                                     </linearGradient>
                                 </defs>
-                                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                                 <XAxis
                                     dataKey="date"
-                                    stroke="rgba(255,255,255,0.3)"
+                                    stroke="hsl(var(--muted-foreground))"
                                     fontSize={12}
                                     tickFormatter={(v) => v.slice(5)}
                                 />
-                                <YAxis stroke="rgba(255,255,255,0.3)" fontSize={12} />
+                                <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
                                 <Tooltip
                                     contentStyle={{
-                                        backgroundColor: "rgba(0,0,0,0.8)",
-                                        border: "1px solid rgba(255,255,255,0.1)",
+                                        backgroundColor: "hsl(var(--popover))",
+                                        border: "1px solid hsl(var(--border))",
                                         borderRadius: "8px",
                                         fontSize: "12px",
+                                        color: "hsl(var(--foreground))",
                                     }}
                                 />
                                 <Area
                                     type="monotone"
                                     dataKey="count"
-                                    stroke="#3b82f6"
+                                    stroke="hsl(var(--foreground))"
                                     fillOpacity={1}
                                     fill="url(#colorDownloads)"
-                                    strokeWidth={2}
+                                    strokeWidth={1.5}
                                 />
                             </AreaChart>
                         </ResponsiveContainer>
@@ -125,9 +124,9 @@ export default function AdminDashboardPage() {
 
             {/* Top Software & Recent Downloads */}
             <div className="grid lg:grid-cols-2 gap-6">
-                <Card className="border-white/10 bg-white/[0.03]">
+                <Card className="border-border/50">
                     <CardHeader>
-                        <CardTitle className="text-lg">Top Software</CardTitle>
+                        <CardTitle className="text-base font-semibold">Top Software</CardTitle>
                     </CardHeader>
                     <CardContent>
                         {data.topSoftware.length === 0 ? (
@@ -142,8 +141,8 @@ export default function AdminDashboardPage() {
                                             </span>
                                             <span className="text-sm font-medium">{sw.name}</span>
                                         </div>
-                                        <span className="text-sm text-muted-foreground">
-                                            {sw.downloads} downloads
+                                        <span className="text-sm text-muted-foreground tabular-nums">
+                                            {sw.downloads}
                                         </span>
                                     </div>
                                 ))}
@@ -152,9 +151,9 @@ export default function AdminDashboardPage() {
                     </CardContent>
                 </Card>
 
-                <Card className="border-white/10 bg-white/[0.03]">
+                <Card className="border-border/50">
                     <CardHeader>
-                        <CardTitle className="text-lg">Recent Downloads</CardTitle>
+                        <CardTitle className="text-base font-semibold">Recent Downloads</CardTitle>
                     </CardHeader>
                     <CardContent>
                         {data.recentDownloads.length === 0 ? (

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { BarChart3, TrendingUp, Eye } from "lucide-react";
+import { TrendingUp, Eye, BarChart3 } from "lucide-react";
 import type { AnalyticsData } from "@/types";
 import {
     AreaChart,
@@ -40,37 +40,45 @@ export default function AdminAnalyticsPage() {
 
     if (!data) return null;
 
+    const tooltipStyle = {
+        backgroundColor: "hsl(var(--popover))",
+        border: "1px solid hsl(var(--border))",
+        borderRadius: "8px",
+        fontSize: "12px",
+        color: "hsl(var(--foreground))",
+    };
+
     return (
         <div className="p-6 space-y-6">
-            <h1 className="text-2xl font-bold">Analytics</h1>
+            <h1 className="text-2xl font-bold tracking-tight">Analytics</h1>
 
             {/* Summary */}
             <div className="grid grid-cols-3 gap-4">
-                <Card className="border-white/10 bg-white/[0.03]">
+                <Card className="border-border/50">
                     <CardContent className="p-5">
                         <p className="text-sm text-muted-foreground">Downloads Today</p>
-                        <p className="text-3xl font-bold mt-1">{data.downloadsToday}</p>
+                        <p className="text-3xl font-bold mt-1 tabular-nums">{data.downloadsToday}</p>
                     </CardContent>
                 </Card>
-                <Card className="border-white/10 bg-white/[0.03]">
+                <Card className="border-border/50">
                     <CardContent className="p-5">
                         <p className="text-sm text-muted-foreground">Downloads This Week</p>
-                        <p className="text-3xl font-bold mt-1">{data.downloadsThisWeek}</p>
+                        <p className="text-3xl font-bold mt-1 tabular-nums">{data.downloadsThisWeek}</p>
                     </CardContent>
                 </Card>
-                <Card className="border-white/10 bg-white/[0.03]">
+                <Card className="border-border/50">
                     <CardContent className="p-5">
                         <p className="text-sm text-muted-foreground">Downloads This Month</p>
-                        <p className="text-3xl font-bold mt-1">{data.downloadsThisMonth}</p>
+                        <p className="text-3xl font-bold mt-1 tabular-nums">{data.downloadsThisMonth}</p>
                     </CardContent>
                 </Card>
             </div>
 
             {/* Downloads Chart */}
-            <Card className="border-white/10 bg-white/[0.03]">
+            <Card className="border-border/50">
                 <CardHeader>
-                    <CardTitle className="text-lg flex items-center gap-2">
-                        <TrendingUp className="h-5 w-5 text-blue-400" />
+                    <CardTitle className="text-base font-semibold flex items-center gap-2">
+                        <TrendingUp className="h-4 w-4 text-muted-foreground" />
                         Downloads Over Time
                     </CardTitle>
                 </CardHeader>
@@ -80,17 +88,15 @@ export default function AdminAnalyticsPage() {
                             <AreaChart data={data.downloadsOverTime}>
                                 <defs>
                                     <linearGradient id="dlGrad" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
-                                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                                        <stop offset="5%" stopColor="hsl(var(--foreground))" stopOpacity={0.15} />
+                                        <stop offset="95%" stopColor="hsl(var(--foreground))" stopOpacity={0} />
                                     </linearGradient>
                                 </defs>
-                                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                                <XAxis dataKey="date" stroke="rgba(255,255,255,0.3)" fontSize={12} tickFormatter={(v) => v.slice(5)} />
-                                <YAxis stroke="rgba(255,255,255,0.3)" fontSize={12} />
-                                <Tooltip
-                                    contentStyle={{ backgroundColor: "rgba(0,0,0,0.8)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "8px", fontSize: "12px" }}
-                                />
-                                <Area type="monotone" dataKey="count" stroke="#3b82f6" fillOpacity={1} fill="url(#dlGrad)" strokeWidth={2} />
+                                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                                <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={12} tickFormatter={(v) => v.slice(5)} />
+                                <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                                <Tooltip contentStyle={tooltipStyle} />
+                                <Area type="monotone" dataKey="count" stroke="hsl(var(--foreground))" fillOpacity={1} fill="url(#dlGrad)" strokeWidth={1.5} />
                             </AreaChart>
                         </ResponsiveContainer>
                     ) : (
@@ -100,10 +106,10 @@ export default function AdminAnalyticsPage() {
             </Card>
 
             {/* Page Visits Chart */}
-            <Card className="border-white/10 bg-white/[0.03]">
+            <Card className="border-border/50">
                 <CardHeader>
-                    <CardTitle className="text-lg flex items-center gap-2">
-                        <Eye className="h-5 w-5 text-purple-400" />
+                    <CardTitle className="text-base font-semibold flex items-center gap-2">
+                        <Eye className="h-4 w-4 text-muted-foreground" />
                         Page Visits Over Time
                     </CardTitle>
                 </CardHeader>
@@ -111,13 +117,11 @@ export default function AdminAnalyticsPage() {
                     {data.pageVisitsOverTime.length > 0 ? (
                         <ResponsiveContainer width="100%" height={300}>
                             <BarChart data={data.pageVisitsOverTime}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                                <XAxis dataKey="date" stroke="rgba(255,255,255,0.3)" fontSize={12} tickFormatter={(v) => v.slice(5)} />
-                                <YAxis stroke="rgba(255,255,255,0.3)" fontSize={12} />
-                                <Tooltip
-                                    contentStyle={{ backgroundColor: "rgba(0,0,0,0.8)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "8px", fontSize: "12px" }}
-                                />
-                                <Bar dataKey="count" fill="#a855f7" radius={[4, 4, 0, 0]} />
+                                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                                <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={12} tickFormatter={(v) => v.slice(5)} />
+                                <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                                <Tooltip contentStyle={tooltipStyle} />
+                                <Bar dataKey="count" fill="hsl(var(--muted-foreground))" radius={[4, 4, 0, 0]} />
                             </BarChart>
                         </ResponsiveContainer>
                     ) : (
@@ -127,10 +131,10 @@ export default function AdminAnalyticsPage() {
             </Card>
 
             {/* Top Software */}
-            <Card className="border-white/10 bg-white/[0.03]">
+            <Card className="border-border/50">
                 <CardHeader>
-                    <CardTitle className="text-lg flex items-center gap-2">
-                        <BarChart3 className="h-5 w-5 text-green-400" />
+                    <CardTitle className="text-base font-semibold flex items-center gap-2">
+                        <BarChart3 className="h-4 w-4 text-muted-foreground" />
                         Top Downloaded Software
                     </CardTitle>
                 </CardHeader>
@@ -145,11 +149,11 @@ export default function AdminAnalyticsPage() {
                                     <div className="flex-1">
                                         <div className="flex items-center justify-between mb-1">
                                             <span className="text-sm font-medium">{sw.name}</span>
-                                            <span className="text-sm text-muted-foreground">{sw.downloads}</span>
+                                            <span className="text-sm text-muted-foreground tabular-nums">{sw.downloads}</span>
                                         </div>
-                                        <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
+                                        <div className="h-1.5 bg-muted rounded-full overflow-hidden">
                                             <div
-                                                className="h-full bg-gradient-to-r from-blue-500 to-purple-500 rounded-full"
+                                                className="h-full bg-foreground/30 rounded-full"
                                                 style={{
                                                     width: `${(sw.downloads / (data.topSoftware[0]?.downloads || 1)) * 100}%`,
                                                 }}

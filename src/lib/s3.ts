@@ -51,6 +51,20 @@ export async function getPresignedDownloadUrl(
     return getSignedUrl(s3Client, command, { expiresIn });
 }
 
+export async function getPresignedUploadUrl(
+    bucket: string,
+    key: string,
+    contentType: string,
+    expiresIn: number = 600
+) {
+    const command = new PutObjectCommand({
+        Bucket: bucket,
+        Key: key,
+        ContentType: contentType,
+    });
+    return getSignedUrl(s3Client, command, { expiresIn });
+}
+
 export function getAssetUrl(key: string) {
     return `${process.env.S3_ENDPOINT}/${process.env.S3_ASSETS_BUCKET}/${key}`;
 }

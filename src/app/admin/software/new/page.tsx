@@ -61,7 +61,7 @@ export default function NewSoftwarePage() {
         <div className="p-6 max-w-2xl">
             <h1 className="text-2xl font-bold mb-6">Add New Software</h1>
 
-            <Card className="border-white/10 bg-white/[0.03]">
+            <Card className="border-border/50">
                 <CardContent className="p-6">
                     <form onSubmit={onSubmit} className="space-y-4">
                         <div className="space-y-2">
@@ -71,7 +71,7 @@ export default function NewSoftwarePage() {
                                 name="name"
                                 placeholder="e.g., Ubuntu"
                                 required
-                                className="bg-white/5 border-white/10"
+                                className="bg-muted/50 border-border/50"
                             />
                         </div>
 
@@ -82,7 +82,7 @@ export default function NewSoftwarePage() {
                                 name="description"
                                 placeholder="Describe the software..."
                                 rows={4}
-                                className="bg-white/5 border-white/10"
+                                className="bg-muted/50 border-border/50"
                             />
                         </div>
 
@@ -90,7 +90,7 @@ export default function NewSoftwarePage() {
                             <div className="space-y-2">
                                 <Label>Category</Label>
                                 <Select value={category} onValueChange={setCategory}>
-                                    <SelectTrigger className="bg-white/5 border-white/10">
+                                    <SelectTrigger className="bg-muted/50 border-border/50">
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -109,7 +109,7 @@ export default function NewSoftwarePage() {
                                     id="license"
                                     name="license"
                                     placeholder="e.g., GPL-3.0"
-                                    className="bg-white/5 border-white/10"
+                                    className="bg-muted/50 border-border/50"
                                 />
                             </div>
                         </div>
@@ -120,7 +120,7 @@ export default function NewSoftwarePage() {
                                 id="website"
                                 name="website"
                                 placeholder="https://..."
-                                className="bg-white/5 border-white/10"
+                                className="bg-muted/50 border-border/50"
                             />
                         </div>
 
@@ -134,7 +134,7 @@ export default function NewSoftwarePage() {
                         <Button
                             type="submit"
                             disabled={loading}
-                            className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
+                            className="w-full"
                         >
                             {loading ? (
                                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
