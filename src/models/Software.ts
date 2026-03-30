@@ -10,6 +10,7 @@ export interface IVersion {
     checksum: string;
     platform: string;
     architecture: string;
+    isDeleted: boolean;
     createdAt: Date;
 }
 
@@ -49,6 +50,10 @@ const VersionSchema = new Schema<IVersion>(
             enum: ["x86_64", "arm64", "universal", "other"],
             default: "x86_64",
         },
+        isDeleted: {
+            type: Boolean,
+            default: false,
+        },
     },
     {
         timestamps: { createdAt: true, updatedAt: false },
@@ -69,6 +74,7 @@ export interface ISoftware extends Document {
     license: string;
     isFeatured: boolean;
     versions: IVersion[];
+    defaultVersionId: string;
     totalDownloads: number;
     status: "draft" | "published";
     completedSteps: number;
@@ -138,6 +144,10 @@ const SoftwareSchema = new Schema<ISoftware>(
         versions: {
             type: [VersionSchema],
             default: [],
+        },
+        defaultVersionId: {
+            type: String,
+            default: "",
         },
         totalDownloads: {
             type: Number,

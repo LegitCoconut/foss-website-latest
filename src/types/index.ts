@@ -23,6 +23,7 @@ export interface SoftwareVersion {
     checksum: string;
     platform: string;
     architecture: string;
+    isDeleted: boolean;
     createdAt: string;
 }
 
@@ -40,6 +41,7 @@ export interface SoftwareItem {
     license: string;
     isFeatured: boolean;
     versions: SoftwareVersion[];
+    defaultVersionId: string;
     totalDownloads: number;
     status: "draft" | "published";
     completedSteps: number;
@@ -52,6 +54,7 @@ export interface SoftwareRequestItem {
     userId: string;
     userName?: string;
     userEmail?: string;
+    type: "software-request" | "submit-software" | "showcase-repo";
     title: string;
     description: string;
     url: string;
@@ -77,4 +80,5 @@ export interface AnalyticsData {
     }[];
     downloadsOverTime: { date: string; count: number }[];
     pageVisitsOverTime: { date: string; count: number }[];
+    softwarePageVisits: { slug: string; name: string; visits: number }[];
 }
