@@ -65,10 +65,13 @@ export interface ISoftware extends Document {
     iconKey: string;
     screenshotKeys: string[];
     website: string;
+    githubUrl: string;
     license: string;
     isFeatured: boolean;
     versions: IVersion[];
     totalDownloads: number;
+    status: "draft" | "published";
+    completedSteps: number;
     createdAt: Date;
     updatedAt: Date;
 }
@@ -120,6 +123,10 @@ const SoftwareSchema = new Schema<ISoftware>(
             type: String,
             default: "",
         },
+        githubUrl: {
+            type: String,
+            default: "",
+        },
         license: {
             type: String,
             default: "",
@@ -133,6 +140,15 @@ const SoftwareSchema = new Schema<ISoftware>(
             default: [],
         },
         totalDownloads: {
+            type: Number,
+            default: 0,
+        },
+        status: {
+            type: String,
+            enum: ["draft", "published"],
+            default: "draft",
+        },
+        completedSteps: {
             type: Number,
             default: 0,
         },

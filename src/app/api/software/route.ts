@@ -17,6 +17,22 @@ export async function GET(req: Request) {
 
         const query: Record<string, unknown> = {};
 
+        // Filter by status: default to published, allow admin to see drafts or all
+        const statusParam = searchParams.get("status");
+        if (statusParam === "all" || statusParam === "draft") {
+            const session = await auth();
+            if (session?.user && (session.user as { role?: string }).role === "admin") {
+                if (statusParam === "draft") {
+                    query.status = "draft";
+                }
+                // statusParam === "all": no status filter
+            } else {
+                query.status = "published";
+            }
+        } else {
+            query.status = "published";
+        }
+
         if (search) {
             query.$or = [
                 { name: { $regex: search, $options: "i" } },

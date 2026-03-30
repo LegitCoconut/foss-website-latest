@@ -36,10 +36,13 @@ export interface SoftwareItem {
     iconKey: string;
     screenshotKeys: string[];
     website: string;
+    githubUrl: string;
     license: string;
     isFeatured: boolean;
     versions: SoftwareVersion[];
     totalDownloads: number;
+    status: "draft" | "published";
+    completedSteps: number;
     createdAt: string;
     updatedAt: string;
 }
