@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Plus, Trash2, Package, LayoutGrid, List, Search } from "lucide-react";
+import { Plus, Trash2, Package, LayoutGrid, List, Search, FileText } from "lucide-react";
 import { toast } from "sonner";
 import type { SoftwareItem } from "@/types";
 
@@ -59,12 +59,17 @@ export default function AdminSoftwarePage() {
     const [view, setView] = useState<"table" | "grid">("grid");
     const [categoryFilter, setCategoryFilter] = useState("all");
     const [search, setSearch] = useState("");
+    const [draftCount, setDraftCount] = useState(0);
 
     useEffect(() => {
-        fetch("/api/software?limit=100")
+        fetch("/api/software?limit=100&status=published")
             .then((r) => r.json())
             .then((data) => setSoftware(data.software || []))
             .finally(() => setLoading(false));
+
+        fetch("/api/software?status=draft&limit=1")
+            .then((r) => r.json())
+            .then((data) => setDraftCount(data.pagination?.total ?? 0));
     }, []);
 
     async function handleDelete(e: React.MouseEvent, id: string, name: string) {
@@ -94,12 +99,20 @@ export default function AdminSoftwarePage() {
         <div className="p-6 space-y-4">
             <div className="flex items-center justify-between">
                 <h1 className="text-2xl font-bold tracking-tight">Software Management</h1>
-                <Button asChild size="sm">
-                    <Link href="/admin/software/new">
-                        <Plus className="mr-2 h-4 w-4" />
-                        Add Software
-                    </Link>
-                </Button>
+                <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" asChild>
+                        <Link href="/admin/software/drafts">
+                            <FileText className="mr-2 h-4 w-4" />
+                            View Drafts ({draftCount})
+                        </Link>
+                    </Button>
+                    <Button asChild size="sm">
+                        <Link href="/admin/software/new">
+                            <Plus className="mr-2 h-4 w-4" />
+                            Add Software
+                        </Link>
+                    </Button>
+                </div>
             </div>
 
             {/* Toolbar */}
