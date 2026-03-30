@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { signIn, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -17,14 +17,16 @@ export default function LoginPage() {
     const [loading, setLoading] = useState(false);
 
     // If already logged in, redirect based on role
-    if (session?.user) {
-        const role = (session.user as { role?: string }).role;
-        if (role === "admin") {
-            router.push("/admin");
-        } else {
-            router.push("/dashboard");
+    useEffect(() => {
+        if (session?.user) {
+            const role = (session.user as { role?: string }).role;
+            if (role === "admin") {
+                router.push("/admin");
+            } else {
+                router.push("/dashboard");
+            }
         }
-    }
+    }, [session, router]);
 
     async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
         e.preventDefault();

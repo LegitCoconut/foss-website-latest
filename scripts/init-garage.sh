@@ -40,3 +40,8 @@ echo "    S3_SECRET_ACCESS_KEY=<Secret key>"
 echo "========================================"
 echo ""
 $GARAGE key info foss-app-key
+
+echo ""
+echo "==> NOTE: After setting up .env.local, run:"
+echo "    node scripts/set-cors.js"
+echo "  to configure CORS for browser uploads."
