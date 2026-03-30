@@ -24,6 +24,14 @@ export async function GET(
             return NextResponse.json({ error: "Software not found" }, { status: 404 });
         }
 
+        // If the software is a draft, only allow admins to view it
+        if ((software as { status?: string }).status === "draft") {
+            const session = await auth();
+            if (!session?.user || (session.user as { role?: string }).role !== "admin") {
+                return NextResponse.json({ error: "Software not found" }, { status: 404 });
+            }
+        }
+
         return NextResponse.json({ software });
     } catch (error) {
         console.error("Software get error:", error);
