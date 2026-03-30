@@ -3,6 +3,7 @@ import mongoose, { Schema, Document, Model } from "mongoose";
 export interface ISoftwareRequest extends Document {
     _id: mongoose.Types.ObjectId;
     userId: mongoose.Types.ObjectId;
+    type: "software-request" | "submit-software" | "showcase-repo";
     title: string;
     description: string;
     url: string;
@@ -18,6 +19,11 @@ const SoftwareRequestSchema = new Schema<ISoftwareRequest>(
             type: Schema.Types.ObjectId,
             ref: "User",
             required: true,
+        },
+        type: {
+            type: String,
+            enum: ["software-request", "submit-software", "showcase-repo"],
+            default: "software-request",
         },
         title: {
             type: String,

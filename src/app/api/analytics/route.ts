@@ -98,6 +98,40 @@ export async function GET() {
             { $project: { _id: 0, date: "$_id", count: 1 } },
         ]);
 
+        // Page visits per software (aggregate /catalog/{slug} visits)
+        const softwarePageVisits = await PageVisit.aggregate([
+            {
+                $match: {
+                    path: { $regex: "^/catalog/[^/]+$" },
+                },
+            },
+            {
+                $group: {
+                    _id: { $arrayElemAt: [{ $split: ["$path", "/catalog/"] }, 1] },
+                    visits: { $sum: 1 },
+                },
+            },
+            {
+                $lookup: {
+                    from: "softwares",
+                    localField: "_id",
+                    foreignField: "slug",
+                    as: "software",
+                },
+            },
+            { $unwind: { path: "$software", preserveNullAndEmptyArrays: true } },
+            {
+                $project: {
+                    _id: 0,
+                    slug: "$_id",
+                    name: { $ifNull: ["$software.name", "$_id"] },
+                    visits: 1,
+                },
+            },
+            { $sort: { visits: -1 } },
+            { $limit: 20 },
+        ]);
+
         return NextResponse.json({
             totalUsers,
             totalDownloads,
@@ -110,6 +144,7 @@ export async function GET() {
             recentDownloads: recentFormatted,
             downloadsOverTime,
             pageVisitsOverTime,
+            softwarePageVisits,
         });
     } catch (error) {
         console.error("Analytics error:", error);

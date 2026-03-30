@@ -48,7 +48,16 @@ export default {
                 return true;
             }
 
-            if (isOnDashboard || isOnApiDownload) {
+            if (isOnDashboard) {
+                if (!isLoggedIn) return false;
+                const role = (auth?.user as { role?: string })?.role;
+                if (role === "admin") {
+                    return Response.redirect(new URL("/admin", nextUrl));
+                }
+                return true;
+            }
+
+            if (isOnApiDownload) {
                 return isLoggedIn;
             }
 

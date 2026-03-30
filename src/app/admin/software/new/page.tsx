@@ -10,7 +10,7 @@ import { Loader2, Save, ArrowRight, SkipForward, Send } from "lucide-react";
 import Stepper from "./_components/Stepper";
 import StepBasicInfo, { type BasicInfoData } from "./_components/StepBasicInfo";
 import StepMedia, { type MediaData } from "./_components/StepMedia";
-import StepVersion, { type VersionData } from "./_components/StepVersion";
+import StepVersion, { type VersionData, type UploadStats } from "./_components/StepVersion";
 import StepReview from "./_components/StepReview";
 
 const INITIAL_BASIC_INFO: BasicInfoData = {
@@ -63,6 +63,8 @@ function NewSoftwarePage() {
     const [loading, setLoading] = useState(false);
     const [loadingDraft, setLoadingDraft] = useState(!!draftId);
     const [hasVersion, setHasVersion] = useState(false);
+
+    const [uploadStats, setUploadStats] = useState<UploadStats | null>(null);
 
     const [basicInfo, setBasicInfo] = useState<BasicInfoData>(INITIAL_BASIC_INFO);
     const [media, setMedia] = useState<MediaData>(INITIAL_MEDIA);
@@ -280,13 +282,51 @@ function NewSoftwarePage() {
                 }
                 const { uploadUrl, key: fileKey } = await presignRes.json();
 
-                // 2. Upload file to presigned URL
-                const uploadRes = await fetch(uploadUrl, {
-                    method: "PUT",
-                    body: version.file,
-                    headers: { "Content-Type": version.file.type || "application/octet-stream" },
+                // 2. Upload file to presigned URL with progress tracking
+                const fileSize = version.file.size;
+                setUploadStats({ percent: 0, loaded: 0, total: fileSize, speed: 0, elapsed: 0, remaining: 0 });
+                const uploadOk = await new Promise<boolean>((resolve) => {
+                    const startTime = Date.now();
+                    let lastLoaded = 0;
+                    let lastTime = startTime;
+                    let smoothSpeed = 0;
+
+                    const xhr = new XMLHttpRequest();
+                    xhr.upload.addEventListener("progress", (e) => {
+                        if (!e.lengthComputable) return;
+                        const now = Date.now();
+                        const elapsedMs = now - startTime;
+                        const elapsed = elapsedMs / 1000;
+                        const intervalMs = now - lastTime;
+
+                        // Calculate instantaneous speed over the interval, smooth with EMA
+                        if (intervalMs > 100) {
+                            const intervalSpeed = ((e.loaded - lastLoaded) / intervalMs) * 1000;
+                            smoothSpeed = smoothSpeed === 0 ? intervalSpeed : smoothSpeed * 0.7 + intervalSpeed * 0.3;
+                            lastLoaded = e.loaded;
+                            lastTime = now;
+                        }
+
+                        const remaining = smoothSpeed > 0 ? (e.total - e.loaded) / smoothSpeed : 0;
+
+                        setUploadStats({
+                            percent: Math.round((e.loaded / e.total) * 100),
+                            loaded: e.loaded,
+                            total: e.total,
+                            speed: smoothSpeed,
+                            elapsed,
+                            remaining,
+                        });
+                    });
+                    xhr.addEventListener("load", () => resolve(xhr.status >= 200 && xhr.status < 300));
+                    xhr.addEventListener("error", () => resolve(false));
+                    xhr.addEventListener("abort", () => resolve(false));
+                    xhr.open("PUT", uploadUrl);
+                    xhr.setRequestHeader("Content-Type", version.file!.type || "application/octet-stream");
+                    xhr.send(version.file);
                 });
-                if (!uploadRes.ok) {
+                setUploadStats(null);
+                if (!uploadOk) {
                     toast.error("File upload failed");
                     return false;
                 }
@@ -459,7 +499,7 @@ function NewSoftwarePage() {
                         <StepMedia data={media} onChange={setMedia} />
                     )}
                     {currentStep === 3 && (
-                        <StepVersion data={version} onChange={setVersion} />
+                        <StepVersion data={version} onChange={setVersion} uploadStats={uploadStats} />
                     )}
                     {currentStep === 4 && (
                         <StepReview

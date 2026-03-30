@@ -26,6 +26,11 @@ const navLinks = [
     { href: "/catalog", label: "Catalog" },
 ];
 
+const authNavLinks = [
+    { href: "/catalog", label: "Catalog" },
+    { href: "/dashboard", label: "My Dashboard" },
+];
+
 export function Navbar() {
     const pathname = usePathname();
     const { data: session } = useSession();
@@ -49,7 +54,7 @@ export function Navbar() {
 
                 {/* Desktop nav */}
                 <nav className="hidden md:flex items-center gap-1">
-                    {navLinks.map((link) => (
+                    {(session?.user && !isAdmin ? authNavLinks : navLinks).map((link) => (
                         <Link
                             key={link.href}
                             href={link.href}
@@ -66,6 +71,20 @@ export function Navbar() {
                 {/* Desktop actions */}
                 <div className="hidden md:flex items-center gap-2">
                     {session?.user ? (
+                        isAdmin ? (
+                            <div className="flex items-center gap-2">
+                                <Button variant="ghost" size="sm" asChild className="h-8 gap-2">
+                                    <Link href="/admin">
+                                        <Shield className="h-4 w-4" />
+                                        Admin Panel
+                                    </Link>
+                                </Button>
+                                <Button variant="ghost" size="sm" onClick={() => signOut()} className="h-8 gap-2 text-destructive hover:text-destructive">
+                                    <LogOut className="h-4 w-4" />
+                                    Sign Out
+                                </Button>
+                            </div>
+                        ) : (
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                                 <Button variant="ghost" size="sm" className="gap-2 h-8">
@@ -88,17 +107,6 @@ export function Navbar() {
                                         My Requests
                                     </Link>
                                 </DropdownMenuItem>
-                                {isAdmin && (
-                                    <>
-                                        <DropdownMenuSeparator />
-                                        <DropdownMenuItem asChild>
-                                            <Link href="/admin" className="gap-2">
-                                                <Shield className="h-4 w-4" />
-                                                Admin Panel
-                                            </Link>
-                                        </DropdownMenuItem>
-                                    </>
-                                )}
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem onClick={() => signOut()} className="gap-2 text-destructive focus:text-destructive">
                                     <LogOut className="h-4 w-4" />
@@ -106,6 +114,7 @@ export function Navbar() {
                                 </DropdownMenuItem>
                             </DropdownMenuContent>
                         </DropdownMenu>
+                        )
                     ) : (
                         <div className="flex items-center gap-2">
                             <Button variant="ghost" size="sm" asChild className="h-8">
@@ -127,7 +136,7 @@ export function Navbar() {
                     </SheetTrigger>
                     <SheetContent side="right" className="w-72">
                         <nav className="flex flex-col gap-1 mt-6">
-                            {navLinks.map((link) => (
+                            {(session?.user && !isAdmin ? authNavLinks : navLinks).map((link) => (
                                 <Link
                                     key={link.href}
                                     href={link.href}
@@ -141,15 +150,8 @@ export function Navbar() {
                                 </Link>
                             ))}
                             {session?.user ? (
-                                <>
-                                    <Link
-                                        href="/dashboard"
-                                        onClick={() => setOpen(false)}
-                                        className="px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50"
-                                    >
-                                        Dashboard
-                                    </Link>
-                                    {isAdmin && (
+                                isAdmin ? (
+                                    <>
                                         <Link
                                             href="/admin"
                                             onClick={() => setOpen(false)}
@@ -157,17 +159,36 @@ export function Navbar() {
                                         >
                                             Admin Panel
                                         </Link>
-                                    )}
-                                    <button
-                                        onClick={() => {
-                                            signOut();
-                                            setOpen(false);
-                                        }}
-                                        className="px-3 py-2.5 rounded-lg text-sm font-medium text-destructive hover:bg-muted/50 text-left"
-                                    >
-                                        Sign Out
-                                    </button>
-                                </>
+                                        <button
+                                            onClick={() => {
+                                                signOut();
+                                                setOpen(false);
+                                            }}
+                                            className="px-3 py-2.5 rounded-lg text-sm font-medium text-destructive hover:bg-muted/50 text-left"
+                                        >
+                                            Sign Out
+                                        </button>
+                                    </>
+                                ) : (
+                                    <>
+                                        <Link
+                                            href="/dashboard"
+                                            onClick={() => setOpen(false)}
+                                            className="px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                                        >
+                                            Dashboard
+                                        </Link>
+                                        <button
+                                            onClick={() => {
+                                                signOut();
+                                                setOpen(false);
+                                            }}
+                                            className="px-3 py-2.5 rounded-lg text-sm font-medium text-destructive hover:bg-muted/50 text-left"
+                                        >
+                                            Sign Out
+                                        </button>
+                                    </>
+                                )
                             ) : (
                                 <>
                                     <Link

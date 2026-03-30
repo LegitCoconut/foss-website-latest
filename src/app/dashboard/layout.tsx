@@ -5,12 +5,14 @@ import { usePathname } from "next/navigation";
 import {
     LayoutDashboard,
     MessageSquare,
+    Download,
     ChevronLeft,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const dashboardLinks = [
     { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
+    { href: "/dashboard/downloads", label: "My Downloads", icon: Download },
     { href: "/dashboard/requests", label: "My Requests", icon: MessageSquare },
 ];
 

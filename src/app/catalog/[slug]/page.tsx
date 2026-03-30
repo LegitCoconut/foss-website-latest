@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
@@ -11,7 +11,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
+import Image from "next/image";
 import {
+    ChevronLeft,
+    ChevronRight,
     Download,
     ExternalLink,
     Shield,
@@ -26,6 +29,7 @@ import {
     Wrench,
     Film,
     Package,
+    Github,
 } from "lucide-react";
 import type { SoftwareItem, SoftwareVersion } from "@/types";
 
@@ -53,6 +57,133 @@ function formatBytes(bytes: number) {
     const sizes = ["B", "KB", "MB", "GB"];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
+}
+
+function ScreenshotGallery({ name, keys }: { name: string; keys: string[] }) {
+    const scrollRef = useRef<HTMLDivElement>(null);
+    const [canScrollLeft, setCanScrollLeft] = useState(false);
+    const [canScrollRight, setCanScrollRight] = useState(false);
+    const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+
+    function updateScrollState() {
+        const el = scrollRef.current;
+        if (!el) return;
+        setCanScrollLeft(el.scrollLeft > 0);
+        setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 1);
+    }
+
+    useEffect(() => {
+        updateScrollState();
+        const el = scrollRef.current;
+        if (!el) return;
+        el.addEventListener("scroll", updateScrollState);
+        const ro = new ResizeObserver(updateScrollState);
+        ro.observe(el);
+        return () => { el.removeEventListener("scroll", updateScrollState); ro.disconnect(); };
+    }, []);
+
+    // Keyboard navigation for lightbox
+    useEffect(() => {
+        if (lightboxIndex === null) return;
+        function onKey(e: KeyboardEvent) {
+            if (e.key === "Escape") setLightboxIndex(null);
+            if (e.key === "ArrowLeft") setLightboxIndex((prev) => prev !== null && prev > 0 ? prev - 1 : prev);
+            if (e.key === "ArrowRight") setLightboxIndex((prev) => prev !== null && prev < keys.length - 1 ? prev + 1 : prev);
+        }
+        window.addEventListener("keydown", onKey);
+        return () => window.removeEventListener("keydown", onKey);
+    }, [lightboxIndex, keys.length]);
+
+    function scroll(dir: "left" | "right") {
+        const el = scrollRef.current;
+        if (!el) return;
+        el.scrollBy({ left: dir === "left" ? -400 : 400, behavior: "smooth" });
+    }
+
+    return (
+        <>
+            <div className="relative mb-6 group">
+                <div
+                    ref={scrollRef}
+                    className="flex gap-3 overflow-x-auto"
+                    style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+                >
+                    {keys.map((key, i) => (
+                        <Image
+                            key={key}
+                            src={`/api/assets/${key}`}
+                            alt={`${name} screenshot ${i + 1}`}
+                            width={600}
+                            height={340}
+                            className="rounded-lg border border-white/10 object-cover h-52 w-auto flex-shrink-0 cursor-pointer hover:brightness-90 transition"
+                            unoptimized
+                            onClick={() => setLightboxIndex(i)}
+                        />
+                    ))}
+                </div>
+                {canScrollLeft && (
+                    <button
+                        onClick={() => scroll("left")}
+                        className="absolute left-2 top-1/2 -translate-y-1/2 h-9 w-9 rounded-full bg-black/70 border border-white/10 flex items-center justify-center text-white hover:bg-black/90 transition-opacity opacity-0 group-hover:opacity-100"
+                    >
+                        <ChevronLeft className="h-5 w-5" />
+                    </button>
+                )}
+                {canScrollRight && (
+                    <button
+                        onClick={() => scroll("right")}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 h-9 w-9 rounded-full bg-black/70 border border-white/10 flex items-center justify-center text-white hover:bg-black/90 transition-opacity opacity-0 group-hover:opacity-100"
+                    >
+                        <ChevronRight className="h-5 w-5" />
+                    </button>
+                )}
+            </div>
+
+            {/* Lightbox */}
+            {lightboxIndex !== null && (
+                <div
+                    className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center"
+                    onClick={() => setLightboxIndex(null)}
+                >
+                    {/* Counter */}
+                    <div className="absolute top-4 right-4 text-white/60 text-sm font-mono">
+                        {lightboxIndex + 1} / {keys.length}
+                    </div>
+
+                    {/* Previous */}
+                    {lightboxIndex > 0 && (
+                        <button
+                            onClick={(e) => { e.stopPropagation(); setLightboxIndex(lightboxIndex - 1); }}
+                            className="absolute left-4 top-1/2 -translate-y-1/2 h-11 w-11 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-white hover:bg-white/20 transition"
+                        >
+                            <ChevronLeft className="h-6 w-6" />
+                        </button>
+                    )}
+
+                    {/* Image */}
+                    <Image
+                        src={`/api/assets/${keys[lightboxIndex]}`}
+                        alt={`${name} screenshot ${lightboxIndex + 1}`}
+                        width={1200}
+                        height={800}
+                        className="max-h-[85vh] max-w-[90vw] object-contain rounded-lg"
+                        unoptimized
+                        onClick={(e) => e.stopPropagation()}
+                    />
+
+                    {/* Next */}
+                    {lightboxIndex < keys.length - 1 && (
+                        <button
+                            onClick={(e) => { e.stopPropagation(); setLightboxIndex(lightboxIndex + 1); }}
+                            className="absolute right-4 top-1/2 -translate-y-1/2 h-11 w-11 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-white hover:bg-white/20 transition"
+                        >
+                            <ChevronRight className="h-6 w-6" />
+                        </button>
+                    )}
+                </div>
+            )}
+        </>
+    );
 }
 
 export default function SoftwareDetailPage() {
@@ -119,15 +250,115 @@ export default function SoftwareDetailPage() {
     const Icon = categoryIcons[software.category] || Package;
     const color = categoryColors[software.category] || "from-gray-500 to-slate-500";
 
+    const activeVersions = software.versions.filter((v) => !v.isDeleted);
+    const defaultVersion = software.defaultVersionId
+        ? activeVersions.find((v) => v._id === software.defaultVersionId)
+        : null;
+    // Fall back to latest version if no default is set
+    const featuredVersion = defaultVersion || activeVersions[activeVersions.length - 1] || null;
+    const otherVersions = activeVersions.filter((v) => v._id !== featuredVersion?._id);
+
+    function VersionCard({ version, prominent }: { version: SoftwareVersion; prominent?: boolean }) {
+        return (
+            <Card className={prominent ? "border-white/10 bg-white/[0.03]" : "border-white/10 bg-white/[0.03]"}>
+                <CardHeader>
+                    <div className="flex items-center justify-between">
+                        <CardTitle className="text-lg">
+                            Version {version.versionNumber}
+                            {prominent && defaultVersion && (
+                                <Badge className="ml-2 bg-yellow-500/10 text-yellow-400 border-yellow-500/20 text-[10px]">
+                                    Recommended
+                                </Badge>
+                            )}
+                        </CardTitle>
+                        <Button
+                            onClick={() => handleDownload(version)}
+                            disabled={downloading === version._id}
+                            className={prominent
+                                ? "bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
+                                : ""}
+                            variant={prominent ? "default" : "outline"}
+                        >
+                            {downloading === version._id ? (
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            ) : (
+                                <Download className="mr-2 h-4 w-4" />
+                            )}
+                            Download
+                        </Button>
+                    </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
+                        <div className="flex items-center gap-2 text-muted-foreground">
+                            <HardDrive className="h-4 w-4 flex-shrink-0" />
+                            <span>{formatBytes(version.fileSize)}</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-muted-foreground">
+                            <Monitor className="h-4 w-4 flex-shrink-0" />
+                            <span className="capitalize">{version.platform}</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-muted-foreground">
+                            <Cpu className="h-4 w-4 flex-shrink-0" />
+                            <span>{version.architecture}</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-muted-foreground">
+                            <Calendar className="h-4 w-4 flex-shrink-0" />
+                            <span>{new Date(version.createdAt).toLocaleDateString()}</span>
+                        </div>
+                    </div>
+
+                    {version.checksum && (
+                        <>
+                            <Separator className="bg-white/10" />
+                            <div className="text-sm">
+                                <span className="text-muted-foreground">SHA256: </span>
+                                <code className="text-xs font-mono bg-white/5 px-2 py-1 rounded break-all">
+                                    {version.checksum}
+                                </code>
+                            </div>
+                        </>
+                    )}
+
+                    {version.releaseNotes && (
+                        <>
+                            <Separator className="bg-white/10" />
+                            <div>
+                                <div className="flex items-center gap-2 text-sm font-medium mb-2">
+                                    <FileText className="h-4 w-4" />
+                                    Release Notes
+                                </div>
+                                <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                                    {version.releaseNotes}
+                                </p>
+                            </div>
+                        </>
+                    )}
+                </CardContent>
+            </Card>
+        );
+    }
+
     return (
         <div className="container mx-auto px-4 py-8 max-w-4xl">
             {/* Header */}
             <div className="flex items-start gap-5 mb-8">
-                <div
-                    className={`h-16 w-16 rounded-2xl bg-gradient-to-br ${color} flex items-center justify-center shadow-lg flex-shrink-0`}
-                >
-                    <Icon className="h-8 w-8 text-white" />
-                </div>
+                {software.iconKey ? (
+                    <Image
+                        src={`/api/assets/${software.iconKey}`}
+                        alt={software.name}
+                        width={64}
+                        height={64}
+                        className="h-16 w-16 rounded-2xl object-cover shadow-lg flex-shrink-0 border border-white/10"
+                        unoptimized
+                    />
+                ) : (
+                    <div
+                        className={`h-16 w-16 rounded-2xl bg-gradient-to-br ${color} flex items-center justify-center shadow-lg flex-shrink-0`}
+                    >
+                        <Icon className="h-8 w-8 text-white" />
+                    </div>
+                )}
                 <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-3 flex-wrap mb-2">
                         <h1 className="text-3xl font-bold">{software.name}</h1>
@@ -155,125 +386,89 @@ export default function SoftwareDetailPage() {
                 </div>
             </div>
 
-            {/* Description */}
-            {software.description && (
+            {/* Screenshots */}
+            {software.screenshotKeys && software.screenshotKeys.length > 0 && (
+                <ScreenshotGallery name={software.name} keys={software.screenshotKeys} />
+            )}
+
+            {/* Description & Links */}
+            {(software.description || software.website || software.githubUrl) && (
                 <Card className="border-white/10 bg-white/[0.03] mb-6">
                     <CardContent className="p-6">
-                        <p className="text-muted-foreground leading-relaxed whitespace-pre-wrap">
-                            {software.description}
-                        </p>
-                        {software.website && (
-                            <a
-                                href={software.website}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center gap-1.5 text-blue-400 hover:underline text-sm mt-4"
-                            >
-                                <ExternalLink className="h-3.5 w-3.5" />
-                                Visit Project Website
-                            </a>
+                        {software.description && (
+                            <p className="text-muted-foreground leading-relaxed whitespace-pre-wrap">
+                                {software.description}
+                            </p>
+                        )}
+                        {(software.website || software.githubUrl) && (
+                            <div className="flex items-center gap-4 mt-4">
+                                {software.website && (
+                                    <a
+                                        href={software.website}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center gap-1.5 text-blue-400 hover:underline text-sm"
+                                    >
+                                        <ExternalLink className="h-3.5 w-3.5" />
+                                        Website
+                                    </a>
+                                )}
+                                {software.githubUrl && (
+                                    <a
+                                        href={software.githubUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center gap-1.5 text-blue-400 hover:underline text-sm"
+                                    >
+                                        <Github className="h-3.5 w-3.5" />
+                                        GitHub
+                                    </a>
+                                )}
+                            </div>
                         )}
                     </CardContent>
                 </Card>
             )}
 
-            {/* Versions */}
-            <h2 className="text-xl font-semibold mb-4">Available Versions</h2>
-
-            {software.versions.length === 0 ? (
+            {/* Default / Featured Version */}
+            {featuredVersion ? (
+                <>
+                    <h2 className="text-xl font-semibold mb-4">Download</h2>
+                    <VersionCard version={featuredVersion} prominent />
+                </>
+            ) : (
                 <Card className="border-white/10 bg-white/[0.03]">
                     <CardContent className="p-8 text-center">
                         <Package className="h-10 w-10 mx-auto text-muted-foreground/30 mb-3" />
                         <p className="text-muted-foreground">No versions available yet</p>
                     </CardContent>
                 </Card>
-            ) : (
-                <Tabs defaultValue={software.versions[software.versions.length - 1]?._id} className="space-y-4">
-                    <TabsList className="bg-white/5 border border-white/10 flex-wrap h-auto p-1">
-                        {[...software.versions].reverse().map((v) => (
-                            <TabsTrigger
-                                key={v._id}
-                                value={v._id}
-                                className="data-[state=active]:bg-white/10 text-sm"
-                            >
-                                v{v.versionNumber}
-                            </TabsTrigger>
+            )}
+
+            {/* Other Versions */}
+            {otherVersions.length > 0 && (
+                <div className="mt-8">
+                    <h2 className="text-xl font-semibold mb-4">Other Versions</h2>
+                    <Tabs defaultValue={otherVersions[otherVersions.length - 1]?._id} className="space-y-4">
+                        <TabsList className="bg-white/5 border border-white/10 flex-wrap h-auto p-1">
+                            {[...otherVersions].reverse().map((v) => (
+                                <TabsTrigger
+                                    key={v._id}
+                                    value={v._id}
+                                    className="data-[state=active]:bg-white/10 text-sm"
+                                >
+                                    v{v.versionNumber}
+                                </TabsTrigger>
+                            ))}
+                        </TabsList>
+
+                        {otherVersions.map((version) => (
+                            <TabsContent key={version._id} value={version._id}>
+                                <VersionCard version={version} />
+                            </TabsContent>
                         ))}
-                    </TabsList>
-
-                    {software.versions.map((version) => (
-                        <TabsContent key={version._id} value={version._id}>
-                            <Card className="border-white/10 bg-white/[0.03]">
-                                <CardHeader>
-                                    <div className="flex items-center justify-between">
-                                        <CardTitle className="text-lg">
-                                            Version {version.versionNumber}
-                                        </CardTitle>
-                                        <Button
-                                            onClick={() => handleDownload(version)}
-                                            disabled={downloading === version._id}
-                                            className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
-                                        >
-                                            {downloading === version._id ? (
-                                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                            ) : (
-                                                <Download className="mr-2 h-4 w-4" />
-                                            )}
-                                            Download
-                                        </Button>
-                                    </div>
-                                </CardHeader>
-                                <CardContent className="space-y-4">
-                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
-                                        <div className="flex items-center gap-2 text-muted-foreground">
-                                            <HardDrive className="h-4 w-4 flex-shrink-0" />
-                                            <span>{formatBytes(version.fileSize)}</span>
-                                        </div>
-                                        <div className="flex items-center gap-2 text-muted-foreground">
-                                            <Monitor className="h-4 w-4 flex-shrink-0" />
-                                            <span className="capitalize">{version.platform}</span>
-                                        </div>
-                                        <div className="flex items-center gap-2 text-muted-foreground">
-                                            <Cpu className="h-4 w-4 flex-shrink-0" />
-                                            <span>{version.architecture}</span>
-                                        </div>
-                                        <div className="flex items-center gap-2 text-muted-foreground">
-                                            <Calendar className="h-4 w-4 flex-shrink-0" />
-                                            <span>{new Date(version.createdAt).toLocaleDateString()}</span>
-                                        </div>
-                                    </div>
-
-                                    {version.checksum && (
-                                        <>
-                                            <Separator className="bg-white/10" />
-                                            <div className="text-sm">
-                                                <span className="text-muted-foreground">SHA256: </span>
-                                                <code className="text-xs font-mono bg-white/5 px-2 py-1 rounded break-all">
-                                                    {version.checksum}
-                                                </code>
-                                            </div>
-                                        </>
-                                    )}
-
-                                    {version.releaseNotes && (
-                                        <>
-                                            <Separator className="bg-white/10" />
-                                            <div>
-                                                <div className="flex items-center gap-2 text-sm font-medium mb-2">
-                                                    <FileText className="h-4 w-4" />
-                                                    Release Notes
-                                                </div>
-                                                <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                                                    {version.releaseNotes}
-                                                </p>
-                                            </div>
-                                        </>
-                                    )}
-                                </CardContent>
-                            </Card>
-                        </TabsContent>
-                    ))}
-                </Tabs>
+                    </Tabs>
+                </div>
             )}
 
             {!session?.user && (

@@ -11,7 +11,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import { Upload, X, FileArchive } from "lucide-react";
+import { Upload, X, FileArchive, Loader2, ArrowUp, Clock, HardDrive } from "lucide-react";
 
 export interface VersionData {
     versionNumber: string;
@@ -21,12 +21,46 @@ export interface VersionData {
     file: File | null;
 }
 
+export interface UploadStats {
+    percent: number;
+    loaded: number;
+    total: number;
+    speed: number;
+    elapsed: number;
+    remaining: number;
+}
+
 interface StepVersionProps {
     data: VersionData;
     onChange: (data: VersionData) => void;
+    uploadStats?: UploadStats | null;
 }
 
-export default function StepVersion({ data, onChange }: StepVersionProps) {
+function formatBytes(bytes: number): string {
+    if (bytes === 0) return "0 B";
+    const units = ["B", "KB", "MB", "GB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(1024));
+    const val = bytes / Math.pow(1024, i);
+    return `${val.toFixed(i > 1 ? 2 : 0)} ${units[i]}`;
+}
+
+function formatSpeed(bytesPerSec: number): string {
+    if (bytesPerSec === 0) return "0 B/s";
+    const units = ["B/s", "KB/s", "MB/s", "GB/s"];
+    const i = Math.floor(Math.log(bytesPerSec) / Math.log(1024));
+    const val = bytesPerSec / Math.pow(1024, i);
+    return `${val.toFixed(i > 1 ? 2 : 1)} ${units[i]}`;
+}
+
+function formatTime(seconds: number): string {
+    if (seconds <= 0 || !isFinite(seconds)) return "--";
+    if (seconds < 60) return `${Math.ceil(seconds)}s`;
+    const m = Math.floor(seconds / 60);
+    const s = Math.ceil(seconds % 60);
+    return `${m}m ${s}s`;
+}
+
+export default function StepVersion({ data, onChange, uploadStats }: StepVersionProps) {
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     function update(field: keyof VersionData, value: string) {
@@ -44,6 +78,8 @@ export default function StepVersion({ data, onChange }: StepVersionProps) {
         onChange({ ...data, file: null });
         if (fileInputRef.current) fileInputRef.current.value = "";
     }
+
+    const isUploading = uploadStats !== null && uploadStats !== undefined;
 
     return (
         <div className="space-y-4">
@@ -107,13 +143,72 @@ export default function StepVersion({ data, onChange }: StepVersionProps) {
 
             <div className="space-y-2">
                 <Label>File Upload</Label>
-                {data.file ? (
+                {isUploading ? (
+                    <div className="rounded-lg border border-border/50 bg-muted/50 overflow-hidden">
+                        {/* Progress bar */}
+                        <div className="w-full bg-muted h-2">
+                            <div
+                                className="bg-foreground h-2 transition-all duration-300 ease-out"
+                                style={{ width: `${uploadStats.percent}%` }}
+                            />
+                        </div>
+
+                        <div className="p-4 space-y-3">
+                            {/* File name and percentage */}
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2 min-w-0">
+                                    <Loader2 className="h-4 w-4 text-muted-foreground animate-spin flex-shrink-0" />
+                                    <span className="text-sm font-medium truncate">{data.file?.name}</span>
+                                </div>
+                                <span className="text-sm font-mono font-medium tabular-nums flex-shrink-0 ml-3">
+                                    {uploadStats.percent}%
+                                </span>
+                            </div>
+
+                            {/* Stats grid */}
+                            <div className="grid grid-cols-3 gap-3">
+                                <div className="flex items-center gap-2 rounded-md bg-background/50 px-3 py-2 border border-border/30">
+                                    <ArrowUp className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                                    <div className="min-w-0">
+                                        <p className="text-[11px] text-muted-foreground leading-none mb-0.5">Speed</p>
+                                        <p className="text-xs font-mono font-medium tabular-nums truncate">
+                                            {formatSpeed(uploadStats.speed)}
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-2 rounded-md bg-background/50 px-3 py-2 border border-border/30">
+                                    <HardDrive className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                                    <div className="min-w-0">
+                                        <p className="text-[11px] text-muted-foreground leading-none mb-0.5">Transferred</p>
+                                        <p className="text-xs font-mono font-medium tabular-nums truncate">
+                                            {formatBytes(uploadStats.loaded)} / {formatBytes(uploadStats.total)}
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-2 rounded-md bg-background/50 px-3 py-2 border border-border/30">
+                                    <Clock className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                                    <div className="min-w-0">
+                                        <p className="text-[11px] text-muted-foreground leading-none mb-0.5">Remaining</p>
+                                        <p className="text-xs font-mono font-medium tabular-nums truncate">
+                                            {formatTime(uploadStats.remaining)}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Elapsed time */}
+                            <p className="text-[11px] text-muted-foreground text-right">
+                                Elapsed: {formatTime(uploadStats.elapsed)}
+                            </p>
+                        </div>
+                    </div>
+                ) : data.file ? (
                     <div className="flex items-center gap-3 p-3 rounded-lg border border-border/50 bg-muted/50">
                         <FileArchive className="h-5 w-5 text-muted-foreground" />
                         <div className="flex-1 min-w-0">
                             <p className="text-sm font-medium truncate">{data.file.name}</p>
                             <p className="text-xs text-muted-foreground">
-                                {(data.file.size / (1024 * 1024)).toFixed(2)} MB
+                                {formatBytes(data.file.size)}
                             </p>
                         </div>
                         <button

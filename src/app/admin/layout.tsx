@@ -12,6 +12,7 @@ import {
     ChevronLeft,
     LogOut,
     Shield,
+    ShieldPlus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -21,6 +22,7 @@ const adminLinks = [
     { href: "/admin/users", label: "Users", icon: Users },
     { href: "/admin/requests", label: "Requests", icon: MessageSquare },
     { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
+    { href: "/admin/management", label: "Management", icon: ShieldPlus },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {

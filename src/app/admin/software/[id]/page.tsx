@@ -20,6 +20,7 @@ import {
 import {
     Dialog,
     DialogContent,
+    DialogDescription,
     DialogHeader,
     DialogTitle,
     DialogTrigger,
@@ -30,7 +31,7 @@ import { toast } from "sonner";
 import {
     Loader2, Save, Plus, Trash2, Upload, HardDrive, ImagePlus,
     Package, ArrowLeft, Pencil, Download, Eye, Calendar, Globe,
-    Scale, Star, ExternalLink,
+    Scale, Star, ExternalLink, CheckCircle2, AlertTriangle,
 } from "lucide-react";
 import type { SoftwareItem } from "@/types";
 
@@ -77,6 +78,10 @@ export default function SoftwareDetailPage() {
     const [versionArch, setVersionArch] = useState("x86_64");
     const [dialogOpen, setDialogOpen] = useState(false);
 
+    // Delete version dialog state
+    const [deleteVersionId, setDeleteVersionId] = useState<string | null>(null);
+    const [deleting, setDeleting] = useState(false);
+
     // Logo upload state
     const [uploadingLogo, setUploadingLogo] = useState(false);
     const [dragging, setDragging] = useState(false);
@@ -108,6 +113,7 @@ export default function SoftwareDetailPage() {
                     description: formData.get("description"),
                     category: editCategory,
                     website: formData.get("website"),
+                    githubUrl: formData.get("githubUrl"),
                     license: formData.get("license"),
                     isFeatured: formData.get("isFeatured") === "on",
                 }),
@@ -222,15 +228,41 @@ export default function SoftwareDetailPage() {
         }
     }
 
-    async function handleDeleteVersion(versionId: string) {
-        if (!software) return;
-        if (!confirm("Delete this version? The file will be removed from storage.")) return;
+    async function handleDeleteVersion() {
+        if (!software || !deleteVersionId) return;
+        setDeleting(true);
         try {
-            const res = await fetch(`/api/software/${software._id}/versions?versionId=${versionId}`, { method: "DELETE" });
+            const res = await fetch(`/api/software/${software._id}/versions?versionId=${deleteVersionId}`, { method: "DELETE" });
             if (res.ok) {
-                setSoftware({ ...software, versions: software.versions.filter((v) => v._id !== versionId) });
+                setSoftware({
+                    ...software,
+                    versions: software.versions.map((v) =>
+                        v._id === deleteVersionId ? { ...v, isDeleted: true } : v
+                    ),
+                    defaultVersionId: software.defaultVersionId === deleteVersionId ? "" : software.defaultVersionId,
+                });
                 toast.success("Version deleted");
             } else { toast.error("Delete failed"); }
+        } catch { toast.error("Something went wrong"); }
+        finally {
+            setDeleting(false);
+            setDeleteVersionId(null);
+        }
+    }
+
+    async function handleSetDefault(versionId: string) {
+        if (!software) return;
+        try {
+            const res = await fetch(`/api/software/${software._id}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ defaultVersionId: versionId }),
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setSoftware(data.software);
+                toast.success("Default version updated");
+            } else { toast.error("Failed to set default version"); }
         } catch { toast.error("Something went wrong"); }
     }
 
@@ -354,6 +386,7 @@ export default function SoftwareDetailPage() {
                         <DialogContent className="border-border/50 bg-background">
                             <DialogHeader>
                                 <DialogTitle>Upload New Version</DialogTitle>
+                                <DialogDescription>Add a new version with its release file.</DialogDescription>
                             </DialogHeader>
                             <form onSubmit={handleAddVersion} className="space-y-4">
                                 <div className="space-y-2">
@@ -415,13 +448,38 @@ export default function SoftwareDetailPage() {
                                     <TableHead>Platform</TableHead>
                                     <TableHead>Size</TableHead>
                                     <TableHead>Date</TableHead>
-                                    <TableHead className="w-[60px]"></TableHead>
+                                    <TableHead className="w-[120px]"></TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {[...software.versions].reverse().map((v) => (
-                                    <TableRow key={v._id}>
-                                        <TableCell className="font-medium font-mono">v{v.versionNumber}</TableCell>
+                                {[...software.versions]
+                                    .reverse()
+                                    .sort((a, b) => {
+                                        // Default version first
+                                        if (a._id === software.defaultVersionId) return -1;
+                                        if (b._id === software.defaultVersionId) return 1;
+                                        // Deleted versions last
+                                        if (a.isDeleted && !b.isDeleted) return 1;
+                                        if (!a.isDeleted && b.isDeleted) return -1;
+                                        return 0;
+                                    })
+                                    .map((v) => (
+                                    <TableRow key={v._id} className={v.isDeleted ? "opacity-50" : ""}>
+                                        <TableCell>
+                                            <div className="flex items-center gap-2">
+                                                <span className="font-medium font-mono">v{v.versionNumber}</span>
+                                                {v._id === software.defaultVersionId && !v.isDeleted && (
+                                                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                                                        Default
+                                                    </Badge>
+                                                )}
+                                                {v.isDeleted && (
+                                                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-destructive border-destructive/30">
+                                                        Deleted
+                                                    </Badge>
+                                                )}
+                                            </div>
+                                        </TableCell>
                                         <TableCell className="capitalize">{v.platform}</TableCell>
                                         <TableCell>
                                             <div className="flex items-center gap-1 text-muted-foreground">
@@ -433,10 +491,27 @@ export default function SoftwareDetailPage() {
                                             {new Date(v.createdAt).toLocaleDateString()}
                                         </TableCell>
                                         <TableCell>
-                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                                                onClick={() => handleDeleteVersion(v._id)}>
-                                                <Trash2 className="h-4 w-4" />
-                                            </Button>
+                                            {!v.isDeleted && (
+                                                <div className="flex items-center gap-1">
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className={`h-8 w-8 ${v._id === software.defaultVersionId ? "text-yellow-500" : "text-muted-foreground hover:text-yellow-500"}`}
+                                                        onClick={() => handleSetDefault(v._id)}
+                                                        title={v._id === software.defaultVersionId ? "Default version" : "Set as default"}
+                                                    >
+                                                        <Star className={`h-4 w-4 ${v._id === software.defaultVersionId ? "fill-yellow-500" : ""}`} />
+                                                    </Button>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                                        onClick={() => setDeleteVersionId(v._id)}
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </Button>
+                                                </div>
+                                            )}
                                         </TableCell>
                                     </TableRow>
                                 ))}
@@ -446,11 +521,43 @@ export default function SoftwareDetailPage() {
                 </CardContent>
             </Card>
 
+            {/* Delete Version Confirmation Dialog */}
+            <Dialog open={!!deleteVersionId} onOpenChange={(open) => { if (!open) setDeleteVersionId(null); }}>
+                <DialogContent className="border-border/50 bg-background max-w-sm">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <AlertTriangle className="h-5 w-5 text-destructive" />
+                            Delete Version
+                        </DialogTitle>
+                        <DialogDescription>
+                            This will permanently delete the file from storage. The version entry will remain visible but marked as deleted.
+                        </DialogDescription>
+                    </DialogHeader>
+                    {deleteVersionId && (
+                        <p className="text-sm text-muted-foreground">
+                            Version: <span className="font-mono font-medium text-foreground">
+                                v{software.versions.find((v) => v._id === deleteVersionId)?.versionNumber}
+                            </span>
+                        </p>
+                    )}
+                    <div className="flex gap-2 pt-2">
+                        <Button variant="outline" className="flex-1" onClick={() => setDeleteVersionId(null)} disabled={deleting}>
+                            Cancel
+                        </Button>
+                        <Button variant="destructive" className="flex-1" onClick={handleDeleteVersion} disabled={deleting}>
+                            {deleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+                            Delete
+                        </Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
+
             {/* Edit Dialog */}
             <Dialog open={editing} onOpenChange={setEditing}>
                 <DialogContent className="border-border/50 bg-background max-w-lg">
                     <DialogHeader>
                         <DialogTitle>Edit Software</DialogTitle>
+                        <DialogDescription>Update software details and metadata.</DialogDescription>
                     </DialogHeader>
                     <form onSubmit={onSave} className="space-y-4">
                         {/* Logo Upload */}
@@ -523,9 +630,15 @@ export default function SoftwareDetailPage() {
                                 <Input id="license" name="license" defaultValue={software.license} className="bg-muted/50 border-border/50" />
                             </div>
                         </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="website">Website</Label>
-                            <Input id="website" name="website" defaultValue={software.website} className="bg-muted/50 border-border/50" />
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="website">Website</Label>
+                                <Input id="website" name="website" defaultValue={software.website} className="bg-muted/50 border-border/50" />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="githubUrl">GitHub URL</Label>
+                                <Input id="githubUrl" name="githubUrl" defaultValue={software.githubUrl} placeholder="https://github.com/..." className="bg-muted/50 border-border/50" />
+                            </div>
                         </div>
                         <div className="flex items-center gap-2">
                             <input type="checkbox" id="isFeatured" name="isFeatured" defaultChecked={software.isFeatured} className="rounded" />

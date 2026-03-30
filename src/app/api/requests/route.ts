@@ -70,6 +70,7 @@ export async function POST(req: Request) {
 
         const request = await SoftwareRequest.create({
             userId: session.user.id,
+            type: body.type || "software-request",
             title: body.title,
             description: body.description,
             url: body.url || "",

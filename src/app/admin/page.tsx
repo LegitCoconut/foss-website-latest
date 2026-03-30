@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Users, Download, Package, MessageSquare, TrendingUp } from "lucide-react";
+import { Users, Download, Package, MessageSquare, TrendingUp, Eye } from "lucide-react";
 import type { AnalyticsData } from "@/types";
 import {
     AreaChart,
@@ -117,6 +117,51 @@ export default function AdminDashboardPage() {
                     ) : (
                         <div className="h-48 flex items-center justify-center text-muted-foreground text-sm">
                             No download data yet
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
+
+            {/* Page Visits by Software */}
+            <Card className="border-border/50">
+                <CardHeader>
+                    <CardTitle className="text-base font-semibold flex items-center gap-2">
+                        <Eye className="h-4 w-4 text-muted-foreground" />
+                        Page Visits by Software
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                    {!data.softwarePageVisits || data.softwarePageVisits.length === 0 ? (
+                        <div className="h-32 flex items-center justify-center text-muted-foreground text-sm">
+                            No page visit data yet
+                        </div>
+                    ) : (
+                        <div className="space-y-3">
+                            {data.softwarePageVisits.map((sw, i) => {
+                                const maxVisits = data.softwarePageVisits[0].visits;
+                                const barWidth = maxVisits > 0 ? (sw.visits / maxVisits) * 100 : 0;
+                                return (
+                                    <div key={sw.slug} className="space-y-1">
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-3">
+                                                <span className="text-xs font-mono text-muted-foreground w-5">
+                                                    {i + 1}.
+                                                </span>
+                                                <span className="text-sm font-medium">{sw.name}</span>
+                                            </div>
+                                            <span className="text-sm text-muted-foreground tabular-nums">
+                                                {sw.visits.toLocaleString()} visit{sw.visits !== 1 ? "s" : ""}
+                                            </span>
+                                        </div>
+                                        <div className="ml-8 h-1.5 rounded-full bg-muted overflow-hidden">
+                                            <div
+                                                className="h-full rounded-full bg-foreground/20"
+                                                style={{ width: `${barWidth}%` }}
+                                            />
+                                        </div>
+                                    </div>
+                                );
+                            })}
                         </div>
                     )}
                 </CardContent>

@@ -8,12 +8,19 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Package, MessageSquarePlus, Calendar } from "lucide-react";
+import { Package, MessageSquarePlus, Calendar, Download } from "lucide-react";
 
 interface RequestEntry {
     _id: string;
     title: string;
     status: string;
+    createdAt: string;
+}
+
+interface DownloadEntry {
+    _id: string;
+    softwareName: string;
+    versionNumber: string;
     createdAt: string;
 }
 
@@ -27,14 +34,17 @@ const statusVariant: Record<string, "default" | "secondary" | "destructive" | "o
 export default function DashboardPage() {
     const { data: session } = useSession();
     const [requests, setRequests] = useState<RequestEntry[]>([]);
+    const [downloads, setDownloads] = useState<DownloadEntry[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         Promise.all([
             fetch("/api/requests").then((r) => r.json()),
+            fetch("/api/downloads").then((r) => r.json()),
         ])
-            .then(([reqData]) => {
+            .then(([reqData, dlData]) => {
                 setRequests(reqData.requests || []);
+                setDownloads(dlData.downloads || []);
             })
             .finally(() => setLoading(false));
     }, []);
@@ -121,6 +131,58 @@ export default function DashboardPage() {
                                             <div className="flex items-center gap-1.5">
                                                 <Calendar className="h-3.5 w-3.5" />
                                                 {new Date(req.createdAt).toLocaleDateString()}
+                                            </div>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    )}
+                </CardContent>
+            </Card>
+
+            {/* Recent Downloads */}
+            <Card className="border-border/50">
+                <CardHeader className="flex flex-row items-center justify-between pb-4">
+                    <CardTitle className="text-base font-semibold">My Downloads</CardTitle>
+                    <Button asChild variant="ghost" size="sm">
+                        <Link href="/dashboard/downloads">View All</Link>
+                    </Button>
+                </CardHeader>
+                <CardContent>
+                    {loading ? (
+                        <div className="space-y-3">
+                            {Array.from({ length: 3 }).map((_, i) => (
+                                <Skeleton key={i} className="h-12 w-full" />
+                            ))}
+                        </div>
+                    ) : downloads.length === 0 ? (
+                        <div className="text-center py-10">
+                            <Download className="h-8 w-8 mx-auto text-muted-foreground/30 mb-3" />
+                            <p className="text-sm text-muted-foreground">No downloads yet</p>
+                        </div>
+                    ) : (
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Software</TableHead>
+                                    <TableHead>Version</TableHead>
+                                    <TableHead>Date</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {downloads.slice(0, 5).map((dl) => (
+                                    <TableRow key={dl._id}>
+                                        <TableCell className="font-medium">{dl.softwareName}</TableCell>
+                                        <TableCell>
+                                            <Badge variant="outline" className="font-mono text-xs">
+                                                v{dl.versionNumber}
+                                            </Badge>
+                                        </TableCell>
+                                        <TableCell className="text-muted-foreground">
+                                            <div className="flex items-center gap-1.5">
+                                                <Calendar className="h-3.5 w-3.5" />
+                                                {new Date(dl.createdAt).toLocaleDateString()}
                                             </div>
                                         </TableCell>
                                     </TableRow>

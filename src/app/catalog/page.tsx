@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -163,11 +164,23 @@ function CatalogContent() {
                                     <Card className="group border-white/10 bg-white/[0.03] hover:bg-white/[0.06] transition-all duration-300 hover:border-white/20 hover:shadow-lg hover:shadow-blue-500/5 cursor-pointer h-full">
                                         <CardContent className="p-5">
                                             <div className="flex items-start justify-between mb-3">
-                                                <div
-                                                    className={`h-11 w-11 rounded-xl bg-gradient-to-br ${color} flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform`}
-                                                >
-                                                    <Icon className="h-5 w-5 text-white" />
-                                                </div>
+                                                {sw.iconKey ? (
+                                                    <div className="h-11 w-11 rounded-xl overflow-hidden shadow-lg group-hover:scale-105 transition-transform flex-shrink-0">
+                                                        <Image
+                                                            src={`/api/assets/${sw.iconKey}`}
+                                                            alt={sw.name}
+                                                            width={44}
+                                                            height={44}
+                                                            className="h-full w-full object-cover"
+                                                        />
+                                                    </div>
+                                                ) : (
+                                                    <div
+                                                        className={`h-11 w-11 rounded-xl bg-gradient-to-br ${color} flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform`}
+                                                    >
+                                                        <Icon className="h-5 w-5 text-white" />
+                                                    </div>
+                                                )}
                                                 {sw.isFeatured && (
                                                     <Badge variant="secondary" className="text-[10px] bg-yellow-500/10 text-yellow-400 border-yellow-500/20">
                                                         Featured
