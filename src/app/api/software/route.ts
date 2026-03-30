@@ -53,11 +53,21 @@ export async function GET(req: Request) {
         }
 
         const total = await Software.countDocuments(query);
-        const software = await Software.find(query)
+        const softwareRaw = await Software.find(query)
             .sort({ createdAt: -1 })
             .skip((page - 1) * limit)
             .limit(limit)
             .lean();
+
+        // Check if requester is admin
+        const session = await auth();
+        const isAdmin = session?.user && (session.user as { role?: string }).role === "admin";
+
+        // Filter out deleted versions for non-admin users
+        const software = isAdmin ? softwareRaw : softwareRaw.map((sw) => ({
+            ...sw,
+            versions: (sw.versions || []).filter((v: { isDeleted?: boolean }) => !v.isDeleted),
+        }));
 
         return NextResponse.json({
             software,

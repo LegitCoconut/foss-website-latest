@@ -24,12 +24,19 @@ export async function GET(
             return NextResponse.json({ error: "Software not found" }, { status: 404 });
         }
 
+        const session = await auth();
+        const isAdmin = session?.user && (session.user as { role?: string }).role === "admin";
+
         // If the software is a draft, only allow admins to view it
-        if ((software as { status?: string }).status === "draft") {
-            const session = await auth();
-            if (!session?.user || (session.user as { role?: string }).role !== "admin") {
-                return NextResponse.json({ error: "Software not found" }, { status: 404 });
-            }
+        if ((software as { status?: string }).status === "draft" && !isAdmin) {
+            return NextResponse.json({ error: "Software not found" }, { status: 404 });
+        }
+
+        // Filter out deleted versions for non-admin users
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const sw = software as any;
+        if (!isAdmin && Array.isArray(sw.versions)) {
+            sw.versions = sw.versions.filter((v: { isDeleted?: boolean }) => !v.isDeleted);
         }
 
         return NextResponse.json({ software });

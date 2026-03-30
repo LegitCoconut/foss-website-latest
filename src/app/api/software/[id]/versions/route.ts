@@ -76,10 +76,16 @@ export async function DELETE(
             console.error("Failed to delete S3 file:", e);
         }
 
-        await Software.updateOne(
-            { _id: id },
-            { $pull: { versions: { _id: versionId } } }
-        );
+        // Soft-delete: mark version as deleted instead of removing
+        version.isDeleted = true;
+        software.markModified("versions");
+
+        // If this was the default version, clear the default
+        if (software.defaultVersionId === versionId) {
+            software.defaultVersionId = "";
+        }
+
+        await software.save();
 
         return NextResponse.json({ message: "Version deleted" });
     } catch (error) {
