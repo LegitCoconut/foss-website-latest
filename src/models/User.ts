@@ -52,7 +52,6 @@ const UserSchema = new Schema<IUser>(
     }
 );
 
-UserSchema.index({ email: 1 });
 
 if (mongoose.models.User) {
     delete mongoose.models.User;

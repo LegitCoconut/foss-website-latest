@@ -202,7 +202,6 @@ const SoftwareSchema = new Schema<ISoftware>(
     }
 );
 
-SoftwareSchema.index({ slug: 1 });
 SoftwareSchema.index({ category: 1 });
 SoftwareSchema.index({ name: "text", description: "text" });
 
