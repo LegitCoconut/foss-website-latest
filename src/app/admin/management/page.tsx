@@ -33,6 +33,7 @@ import {
     Shield,
     Mail,
     Calendar,
+    Key,
 } from "lucide-react";
 
 interface AdminUser {
@@ -61,6 +62,13 @@ export default function AdminManagementPage() {
     const [autoGenerate, setAutoGenerate] = useState(true);
     const [loading, setLoading] = useState(false);
     const [copied, setCopied] = useState(false);
+
+    // Change password state
+    const [showChangePasswordDialog, setShowChangePasswordDialog] = useState(false);
+    const [changePasswordAdmin, setChangePasswordAdmin] = useState<AdminUser | null>(null);
+    const [newPassword, setNewPassword] = useState("");
+    const [autoGenerateNewPassword, setAutoGenerateNewPassword] = useState(true);
+    const [changingPassword, setChangingPassword] = useState(false);
 
     // Credentials popup state
     const [showCredentials, setShowCredentials] = useState(false);
@@ -136,6 +144,45 @@ export default function AdminManagementPage() {
         }
     }
 
+    function openChangePassword(admin: AdminUser) {
+        setChangePasswordAdmin(admin);
+        setNewPassword("");
+        setAutoGenerateNewPassword(true);
+        setShowChangePasswordDialog(true);
+    }
+
+    async function onChangePassword(e: React.FormEvent<HTMLFormElement>) {
+        e.preventDefault();
+        if (!changePasswordAdmin) return;
+        setChangingPassword(true);
+
+        const finalPassword = autoGenerateNewPassword ? generatePassword() : newPassword;
+
+        try {
+            const res = await fetch("/api/admin/create-admin", {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ userId: changePasswordAdmin._id, newPassword: finalPassword }),
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                toast.error(data.error || "Failed to change password");
+                return;
+            }
+
+            setShowChangePasswordDialog(false);
+            setCreatedCredentials({ name: changePasswordAdmin.name, email: changePasswordAdmin.email, password: finalPassword });
+            setShowCredentials(true);
+            toast.success("Password updated successfully");
+        } catch {
+            toast.error("Something went wrong");
+        } finally {
+            setChangingPassword(false);
+        }
+    }
+
     async function copyCredentials() {
         if (!createdCredentials) return;
         const text = `Admin Credentials\n-----------------\nName: ${createdCredentials.name}\nEmail: ${createdCredentials.email}\nPassword: ${createdCredentials.password}`;
@@ -181,6 +228,7 @@ export default function AdminManagementPage() {
                                     <TableHead>Name</TableHead>
                                     <TableHead>Email</TableHead>
                                     <TableHead>Created</TableHead>
+                                    <TableHead className="w-[100px]"></TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -205,6 +253,17 @@ export default function AdminManagementPage() {
                                                 <Calendar className="h-3.5 w-3.5" />
                                                 {new Date(admin.createdAt).toLocaleDateString()}
                                             </div>
+                                        </TableCell>
+                                        <TableCell>
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="h-8 gap-1.5 text-xs"
+                                                onClick={() => openChangePassword(admin)}
+                                            >
+                                                <Key className="h-3.5 w-3.5" />
+                                                Change Password
+                                            </Button>
                                         </TableCell>
                                     </TableRow>
                                 ))}
@@ -294,6 +353,68 @@ export default function AdminManagementPage() {
                         <Button type="submit" disabled={loading} className="w-full">
                             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                             Create Admin
+                        </Button>
+                    </form>
+                </DialogContent>
+            </Dialog>
+
+            {/* Change Password Dialog */}
+            <Dialog open={showChangePasswordDialog} onOpenChange={setShowChangePasswordDialog}>
+                <DialogContent className="border-border/50 bg-background sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <Key className="h-5 w-5" />
+                            Change Password
+                        </DialogTitle>
+                        <DialogDescription>
+                            Set a new password for {changePasswordAdmin?.name}.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <form onSubmit={onChangePassword} className="space-y-4">
+                        <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                                <Label htmlFor="newPassword">New Password</Label>
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 text-xs gap-1.5"
+                                    onClick={() => {
+                                        if (!autoGenerateNewPassword) {
+                                            const generated = generatePassword();
+                                            setNewPassword(generated);
+                                            setAutoGenerateNewPassword(true);
+                                        } else {
+                                            setAutoGenerateNewPassword(false);
+                                            setNewPassword("");
+                                        }
+                                    }}
+                                >
+                                    <RefreshCw className="h-3 w-3" />
+                                    {autoGenerateNewPassword ? "Enter manually" : "Auto-generate"}
+                                </Button>
+                            </div>
+                            {autoGenerateNewPassword ? (
+                                <p className="text-sm text-muted-foreground bg-muted/50 border border-border/50 rounded-md px-3 py-2">
+                                    Password will be auto-generated
+                                </p>
+                            ) : (
+                                <Input
+                                    id="newPassword"
+                                    type="text"
+                                    value={newPassword}
+                                    onChange={(e) => setNewPassword(e.target.value)}
+                                    placeholder="Min 6 characters"
+                                    minLength={6}
+                                    required
+                                    className="bg-muted/50 border-border/50"
+                                />
+                            )}
+                        </div>
+
+                        <Button type="submit" disabled={changingPassword} className="w-full">
+                            {changingPassword && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Update Password
                         </Button>
                     </form>
                 </DialogContent>
