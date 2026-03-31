@@ -35,6 +35,7 @@ const INITIAL_MEDIA: MediaData = {
 const INITIAL_VERSION: VersionData = {
     versionNumber: "",
     releaseNotes: "",
+    files: [],
     platform: "cross-platform",
     architecture: "x86_64",
     file: null,
@@ -103,6 +104,7 @@ function NewSoftwarePage() {
                 setVersion({
                     versionNumber: v.versionNumber || "",
                     releaseNotes: v.releaseNotes || "",
+                    files: [],
                     platform: v.platform || "cross-platform",
                     architecture: v.architecture || "x86_64",
                     file: null,
@@ -253,6 +255,51 @@ function NewSoftwarePage() {
     }
 
     // --- Step 3: Save Version ---
+    async function uploadFileWithProgress(file: File, uploadUrl: string, currentIndex: number, totalFiles: number): Promise<boolean> {
+        return new Promise<boolean>((resolve) => {
+            const startTime = Date.now();
+            let lastLoaded = 0;
+            let lastTime = startTime;
+            let smoothSpeed = 0;
+
+            const xhr = new XMLHttpRequest();
+            xhr.upload.addEventListener("progress", (e) => {
+                if (!e.lengthComputable) return;
+                const now = Date.now();
+                const elapsedMs = now - startTime;
+                const elapsed = elapsedMs / 1000;
+                const intervalMs = now - lastTime;
+
+                if (intervalMs > 100) {
+                    const intervalSpeed = ((e.loaded - lastLoaded) / intervalMs) * 1000;
+                    smoothSpeed = smoothSpeed === 0 ? intervalSpeed : smoothSpeed * 0.7 + intervalSpeed * 0.3;
+                    lastLoaded = e.loaded;
+                    lastTime = now;
+                }
+
+                const remaining = smoothSpeed > 0 ? (e.total - e.loaded) / smoothSpeed : 0;
+
+                setUploadStats({
+                    percent: Math.round((e.loaded / e.total) * 100),
+                    loaded: e.loaded,
+                    total: e.total,
+                    speed: smoothSpeed,
+                    elapsed,
+                    remaining,
+                    currentFileName: file.name,
+                    currentIndex,
+                    totalFiles,
+                });
+            });
+            xhr.addEventListener("load", () => resolve(xhr.status >= 200 && xhr.status < 300));
+            xhr.addEventListener("error", () => resolve(false));
+            xhr.addEventListener("abort", () => resolve(false));
+            xhr.open("PUT", uploadUrl);
+            xhr.setRequestHeader("Content-Type", file.type || "application/octet-stream");
+            xhr.send(file);
+        });
+    }
+
     async function saveStep3(skip: boolean): Promise<boolean> {
         if (!softwareId) return false;
 
@@ -262,87 +309,63 @@ function NewSoftwarePage() {
                     toast.error("Version number is required");
                     return false;
                 }
-                if (!version.file) {
-                    toast.error("Please upload a file for this version");
+
+                const validFiles = version.files.filter((f) => f.file && f.file.size > 0);
+                if (validFiles.length === 0) {
+                    toast.error("Please add at least one file");
                     return false;
                 }
 
-                // 1. Get presigned URL
-                const presignRes = await fetch("/api/upload", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        fileName: version.file.name,
-                        contentType: version.file.type || "application/octet-stream",
-                    }),
-                });
-                if (!presignRes.ok) {
-                    toast.error("Failed to get upload URL");
-                    return false;
-                }
-                const { uploadUrl, key: fileKey } = await presignRes.json();
+                const uploadedFiles = [];
 
-                // 2. Upload file to presigned URL with progress tracking
-                const fileSize = version.file.size;
-                setUploadStats({ percent: 0, loaded: 0, total: fileSize, speed: 0, elapsed: 0, remaining: 0 });
-                const uploadOk = await new Promise<boolean>((resolve) => {
-                    const startTime = Date.now();
-                    let lastLoaded = 0;
-                    let lastTime = startTime;
-                    let smoothSpeed = 0;
+                for (let i = 0; i < validFiles.length; i++) {
+                    const entry = validFiles[i];
+                    const file = entry.file!;
 
-                    const xhr = new XMLHttpRequest();
-                    xhr.upload.addEventListener("progress", (e) => {
-                        if (!e.lengthComputable) return;
-                        const now = Date.now();
-                        const elapsedMs = now - startTime;
-                        const elapsed = elapsedMs / 1000;
-                        const intervalMs = now - lastTime;
-
-                        // Calculate instantaneous speed over the interval, smooth with EMA
-                        if (intervalMs > 100) {
-                            const intervalSpeed = ((e.loaded - lastLoaded) / intervalMs) * 1000;
-                            smoothSpeed = smoothSpeed === 0 ? intervalSpeed : smoothSpeed * 0.7 + intervalSpeed * 0.3;
-                            lastLoaded = e.loaded;
-                            lastTime = now;
-                        }
-
-                        const remaining = smoothSpeed > 0 ? (e.total - e.loaded) / smoothSpeed : 0;
-
-                        setUploadStats({
-                            percent: Math.round((e.loaded / e.total) * 100),
-                            loaded: e.loaded,
-                            total: e.total,
-                            speed: smoothSpeed,
-                            elapsed,
-                            remaining,
-                        });
+                    // 1. Get presigned URL
+                    const presignRes = await fetch("/api/upload", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            fileName: file.name,
+                            contentType: file.type || "application/octet-stream",
+                        }),
                     });
-                    xhr.addEventListener("load", () => resolve(xhr.status >= 200 && xhr.status < 300));
-                    xhr.addEventListener("error", () => resolve(false));
-                    xhr.addEventListener("abort", () => resolve(false));
-                    xhr.open("PUT", uploadUrl);
-                    xhr.setRequestHeader("Content-Type", version.file!.type || "application/octet-stream");
-                    xhr.send(version.file);
-                });
-                setUploadStats(null);
-                if (!uploadOk) {
-                    toast.error("File upload failed");
-                    return false;
+                    if (!presignRes.ok) {
+                        toast.error(`Failed to get upload URL for ${file.name}`);
+                        setUploadStats(null);
+                        return false;
+                    }
+                    const { uploadUrl, key: fileKey } = await presignRes.json();
+
+                    // 2. Upload with progress
+                    const uploadOk = await uploadFileWithProgress(file, uploadUrl, i + 1, validFiles.length);
+                    if (!uploadOk) {
+                        setUploadStats(null);
+                        toast.error(`Upload failed for ${file.name}`);
+                        return false;
+                    }
+
+                    uploadedFiles.push({
+                        fileKey,
+                        fileName: file.name,
+                        fileSize: file.size,
+                        checksum: "",
+                        platform: entry.platform,
+                        architecture: entry.architecture,
+                    });
                 }
 
-                // 3. Create version
+                setUploadStats(null);
+
+                // 3. Create version with files array
                 const versionRes = await fetch(`/api/software/${softwareId}/versions`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
                         versionNumber: version.versionNumber,
                         releaseNotes: version.releaseNotes,
-                        platform: version.platform,
-                        architecture: version.architecture,
-                        fileKey,
-                        fileName: version.file.name,
-                        fileSize: version.file.size,
+                        files: uploadedFiles,
                     }),
                 });
                 if (!versionRes.ok) {

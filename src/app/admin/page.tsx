@@ -22,7 +22,7 @@ interface SystemStats {
     cpu: { usage: number; cores: number; model: string };
     memory: { total: number; used: number; free: number; usagePercent: number };
     disk: { total: number; used: number; available: number; usagePercent: number };
-    storage: { garage: string; docker: { name: string; size: string }[] };
+    storage: { s3: { files: number; assets: number; total: number }; docker: { name: string; size: string }[] };
     network: { interface: string; rxBytes: number; txBytes: number };
     system: { hostname: string; platform: string; arch: string; uptime: number };
 }
@@ -320,8 +320,16 @@ export default function AdminDashboardPage() {
                         </CardHeader>
                         <CardContent className="space-y-3">
                             <div className="flex items-center justify-between text-sm">
-                                <span className="text-muted-foreground">Garage (S3 Data)</span>
-                                <span className="font-mono font-medium">{sysStats.storage.garage}</span>
+                                <span className="text-muted-foreground">S3 Total</span>
+                                <span className="font-mono font-medium">{formatBytes(sysStats.storage.s3.total)}</span>
+                            </div>
+                            <div className="flex items-center justify-between text-sm">
+                                <span className="text-muted-foreground">S3 Files Bucket</span>
+                                <span className="font-mono font-medium">{formatBytes(sysStats.storage.s3.files)}</span>
+                            </div>
+                            <div className="flex items-center justify-between text-sm">
+                                <span className="text-muted-foreground">S3 Assets Bucket</span>
+                                <span className="font-mono font-medium">{formatBytes(sysStats.storage.s3.assets)}</span>
                             </div>
                             {sysStats.storage.docker.map((d) => (
                                 <div key={d.name} className="flex items-center justify-between text-sm">

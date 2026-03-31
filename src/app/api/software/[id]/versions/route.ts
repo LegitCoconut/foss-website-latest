@@ -69,11 +69,16 @@ export async function DELETE(
             return NextResponse.json({ error: "Version not found" }, { status: 404 });
         }
 
-        // Delete file from S3
-        try {
-            await deleteFile(process.env.S3_FILES_BUCKET!, version.fileKey);
-        } catch (e) {
-            console.error("Failed to delete S3 file:", e);
+        // Delete files from S3
+        const fileKeys = version.files && version.files.length > 0
+            ? version.files.map((f) => f.fileKey)
+            : version.fileKey ? [version.fileKey] : [];
+        for (const fk of fileKeys) {
+            try {
+                await deleteFile(process.env.S3_FILES_BUCKET!, fk);
+            } catch (e) {
+                console.error("Failed to delete S3 file:", e);
+            }
         }
 
         // Soft-delete: mark version as deleted instead of removing

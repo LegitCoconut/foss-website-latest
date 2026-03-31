@@ -95,14 +95,24 @@ export default function StepReview({ basicInfo, media, version, hasVersion }: St
                 <CardContent className="p-4 space-y-3">
                     <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Version</h3>
                     {hasVersion ? (
-                        <div className="text-sm space-y-1">
+                        <div className="text-sm space-y-2">
                             <p><span className="text-muted-foreground">Version:</span> {version.versionNumber}</p>
-                            <p><span className="text-muted-foreground">Platform:</span> {version.platform}</p>
-                            <p><span className="text-muted-foreground">Architecture:</span> {version.architecture}</p>
                             {version.releaseNotes && (
                                 <p><span className="text-muted-foreground">Release Notes:</span> {version.releaseNotes}</p>
                             )}
-                            {version.file && (
+                            {version.files && version.files.length > 0 ? (
+                                <div className="space-y-1.5 mt-2">
+                                    <p className="text-muted-foreground text-xs">{version.files.length} file{version.files.length > 1 ? "s" : ""}:</p>
+                                    {version.files.filter(f => f.file).map((f, i) => (
+                                        <div key={i} className="text-xs flex items-center gap-2 bg-muted/50 rounded px-2 py-1.5">
+                                            <span className="font-medium truncate">{f.file!.name}</span>
+                                            <span className="text-muted-foreground capitalize">{f.platform}</span>
+                                            <span className="text-muted-foreground">{f.architecture}</span>
+                                            <span className="text-muted-foreground ml-auto">{(f.file!.size / (1024 * 1024)).toFixed(2)} MB</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : version.file && (
                                 <p><span className="text-muted-foreground">File:</span> {version.file.name} ({(version.file.size / (1024 * 1024)).toFixed(2)} MB)</p>
                             )}
                         </div>

@@ -74,9 +74,15 @@ export default function SoftwareDetailPage() {
 
     // Version dialog state
     const [uploading, setUploading] = useState(false);
-    const [versionPlatform, setVersionPlatform] = useState("cross-platform");
-    const [versionArch, setVersionArch] = useState("x86_64");
     const [dialogOpen, setDialogOpen] = useState(false);
+
+    // Multi-file upload state
+    interface PendingFile {
+        file: File;
+        platform: string;
+        architecture: string;
+    }
+    const [pendingFiles, setPendingFiles] = useState<PendingFile[]>([]);
 
     // Delete version dialog state
     const [deleteVersionId, setDeleteVersionId] = useState<string | null>(null);
@@ -178,39 +184,71 @@ export default function SoftwareDetailPage() {
         }
     }
 
+    function addFileEntry() {
+        setPendingFiles([...pendingFiles, { file: null as unknown as File, platform: "cross-platform", architecture: "x86_64" }]);
+    }
+
+    function updateFileEntry(index: number, updates: Partial<PendingFile>) {
+        setPendingFiles(pendingFiles.map((f, i) => i === index ? { ...f, ...updates } : f));
+    }
+
+    function removeFileEntry(index: number) {
+        setPendingFiles(pendingFiles.filter((_, i) => i !== index));
+    }
+
     async function handleAddVersion(e: React.FormEvent<HTMLFormElement>) {
         e.preventDefault();
         if (!software) return;
+        const validFiles = pendingFiles.filter((pf) => pf.file && pf.file.size > 0);
+        if (validFiles.length === 0) { toast.error("Please add at least one file"); return; }
         setUploading(true);
+
         const formData = new FormData(e.currentTarget);
-        const file = formData.get("file") as File;
-        if (!file || file.size === 0) { toast.error("Please select a file"); setUploading(false); return; }
+
         try {
-            const presignRes = await fetch("/api/upload", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ fileName: file.name, contentType: file.type || "application/octet-stream" }),
-            });
-            if (!presignRes.ok) { toast.error("Failed to prepare upload"); return; }
-            const { uploadUrl, key, fileName } = await presignRes.json();
-            const uploadRes = await fetch(uploadUrl, {
-                method: "PUT",
-                headers: { "Content-Type": file.type || "application/octet-stream" },
-                body: file,
-            });
-            if (!uploadRes.ok) { toast.error("File upload to storage failed"); return; }
-            const arrayBuffer = await file.arrayBuffer();
-            const hashBuffer = await crypto.subtle.digest("SHA-256", arrayBuffer);
-            const hashArray = Array.from(new Uint8Array(hashBuffer));
-            const checksum = hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+            const uploadedFiles = [];
+
+            for (const pf of validFiles) {
+                // Get presigned URL
+                const presignRes = await fetch("/api/upload", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ fileName: pf.file.name, contentType: pf.file.type || "application/octet-stream" }),
+                });
+                if (!presignRes.ok) { toast.error(`Failed to prepare upload for ${pf.file.name}`); return; }
+                const { uploadUrl, key } = await presignRes.json();
+
+                // Upload to S3
+                const uploadRes = await fetch(uploadUrl, {
+                    method: "PUT",
+                    headers: { "Content-Type": pf.file.type || "application/octet-stream" },
+                    body: pf.file,
+                });
+                if (!uploadRes.ok) { toast.error(`Upload failed for ${pf.file.name}`); return; }
+
+                // Checksum
+                const arrayBuffer = await pf.file.arrayBuffer();
+                const hashBuffer = await crypto.subtle.digest("SHA-256", arrayBuffer);
+                const hashArray = Array.from(new Uint8Array(hashBuffer));
+                const checksum = hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+
+                uploadedFiles.push({
+                    fileKey: key,
+                    fileName: pf.file.name,
+                    fileSize: pf.file.size,
+                    checksum,
+                    platform: pf.platform,
+                    architecture: pf.architecture,
+                });
+            }
+
             const res = await fetch(`/api/software/${software._id}/versions`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     versionNumber: formData.get("versionNumber"),
                     releaseNotes: formData.get("releaseNotes"),
-                    fileKey: key, fileName, fileSize: file.size, checksum,
-                    platform: versionPlatform, architecture: versionArch,
+                    files: uploadedFiles,
                 }),
             });
             if (res.ok) {
@@ -218,6 +256,7 @@ export default function SoftwareDetailPage() {
                 setSoftware({ ...software, versions: [...software.versions, verData.version] });
                 toast.success("Version added");
                 setDialogOpen(false);
+                setPendingFiles([]);
             } else {
                 toast.error("Failed to add version");
             }
@@ -393,39 +432,67 @@ export default function SoftwareDetailPage() {
                                     <Label>Version Number *</Label>
                                     <Input name="versionNumber" placeholder="e.g., 24.04 LTS" required className="bg-muted/50 border-border/50" />
                                 </div>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-2">
-                                        <Label>Platform</Label>
-                                        <Select value={versionPlatform} onValueChange={setVersionPlatform}>
-                                            <SelectTrigger className="bg-muted/50 border-border/50"><SelectValue /></SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="windows">Windows</SelectItem>
-                                                <SelectItem value="linux">Linux</SelectItem>
-                                                <SelectItem value="macos">macOS</SelectItem>
-                                                <SelectItem value="cross-platform">Cross-platform</SelectItem>
-                                            </SelectContent>
-                                        </Select>
+
+                                {/* Multi-file entries */}
+                                <div className="space-y-3">
+                                    <div className="flex items-center justify-between">
+                                        <Label>Files *</Label>
+                                        <Button type="button" variant="ghost" size="sm" className="h-7 text-xs" onClick={addFileEntry}>
+                                            <Plus className="h-3 w-3 mr-1" /> Add File
+                                        </Button>
                                     </div>
-                                    <div className="space-y-2">
-                                        <Label>Architecture</Label>
-                                        <Select value={versionArch} onValueChange={setVersionArch}>
-                                            <SelectTrigger className="bg-muted/50 border-border/50"><SelectValue /></SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="x86_64">x86_64</SelectItem>
-                                                <SelectItem value="arm64">ARM64</SelectItem>
-                                                <SelectItem value="universal">Universal</SelectItem>
-                                                <SelectItem value="other">Other</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
+                                    {pendingFiles.length === 0 && (
+                                        <button type="button" onClick={addFileEntry} className="w-full p-4 rounded-lg border-2 border-dashed border-border/50 text-sm text-muted-foreground hover:border-foreground/30 transition-colors">
+                                            Click to add a file
+                                        </button>
+                                    )}
+                                    {pendingFiles.map((pf, i) => (
+                                        <div key={i} className="rounded-lg border border-border/50 bg-muted/30 p-3 space-y-2">
+                                            <div className="flex items-center gap-2">
+                                                <Input
+                                                    type="file"
+                                                    className="bg-muted/50 border-border/50 flex-1 text-xs"
+                                                    onChange={(e) => {
+                                                        const file = e.target.files?.[0];
+                                                        if (file) updateFileEntry(i, { file });
+                                                    }}
+                                                />
+                                                <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive flex-shrink-0" onClick={() => removeFileEntry(i)}>
+                                                    <Trash2 className="h-3.5 w-3.5" />
+                                                </Button>
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-2">
+                                                <Select value={pf.platform} onValueChange={(v) => updateFileEntry(i, { platform: v })}>
+                                                    <SelectTrigger className="bg-muted/50 border-border/50 h-8 text-xs"><SelectValue /></SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="windows">Windows</SelectItem>
+                                                        <SelectItem value="linux">Linux</SelectItem>
+                                                        <SelectItem value="macos">macOS (Intel)</SelectItem>
+                                                        <SelectItem value="macos-arm">macOS (Apple Silicon)</SelectItem>
+                                                        <SelectItem value="cross-platform">Cross-platform</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                                <Select value={pf.architecture} onValueChange={(v) => updateFileEntry(i, { architecture: v })}>
+                                                    <SelectTrigger className="bg-muted/50 border-border/50 h-8 text-xs"><SelectValue /></SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="x86_64">x86_64</SelectItem>
+                                                        <SelectItem value="arm64">ARM64</SelectItem>
+                                                        <SelectItem value="universal">Universal</SelectItem>
+                                                        <SelectItem value="other">Other</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                            {pf.file && (
+                                                <p className="text-[11px] text-muted-foreground truncate">
+                                                    {pf.file.name} ({(pf.file.size / (1024 * 1024)).toFixed(2)} MB)
+                                                </p>
+                                            )}
+                                        </div>
+                                    ))}
                                 </div>
                                 <div className="space-y-2">
                                     <Label>Release Notes</Label>
                                     <Textarea name="releaseNotes" placeholder="What's new..." rows={3} className="bg-muted/50 border-border/50" />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label>File *</Label>
-                                    <Input name="file" type="file" required className="bg-muted/50 border-border/50" />
                                 </div>
                                 <Button type="submit" disabled={uploading} className="w-full">
                                     {uploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
@@ -445,8 +512,8 @@ export default function SoftwareDetailPage() {
                             <TableHeader>
                                 <TableRow>
                                     <TableHead>Version</TableHead>
-                                    <TableHead>Platform</TableHead>
-                                    <TableHead>Size</TableHead>
+                                    <TableHead>Files</TableHead>
+                                    <TableHead>Platforms</TableHead>
                                     <TableHead>Date</TableHead>
                                     <TableHead className="w-[120px]"></TableHead>
                                 </TableRow>
@@ -480,11 +547,17 @@ export default function SoftwareDetailPage() {
                                                 )}
                                             </div>
                                         </TableCell>
-                                        <TableCell className="capitalize">{v.platform}</TableCell>
+                                        <TableCell className="text-sm tabular-nums">
+                                            {v.files && v.files.length > 0 ? `${v.files.length} file${v.files.length > 1 ? "s" : ""}` : v.fileKey ? "1 file" : "—"}
+                                        </TableCell>
                                         <TableCell>
-                                            <div className="flex items-center gap-1 text-muted-foreground">
-                                                <HardDrive className="h-3 w-3" />
-                                                {formatBytes(v.fileSize)}
+                                            <div className="flex flex-wrap gap-1">
+                                                {v.files && v.files.length > 0
+                                                    ? [...new Set(v.files.map((f: { platform: string }) => f.platform))].map((p) => (
+                                                        <Badge key={p} variant="secondary" className="text-[10px] capitalize px-1.5 py-0">{p}</Badge>
+                                                    ))
+                                                    : v.platform && <Badge variant="secondary" className="text-[10px] capitalize px-1.5 py-0">{v.platform}</Badge>
+                                                }
                                             </div>
                                         </TableCell>
                                         <TableCell className="text-muted-foreground">

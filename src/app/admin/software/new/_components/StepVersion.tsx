@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -11,11 +11,19 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import { Upload, X, FileArchive, Loader2, ArrowUp, Clock, HardDrive } from "lucide-react";
+import { Plus, X, FileArchive, Loader2, ArrowUp, Clock, HardDrive, Trash2 } from "lucide-react";
+
+export interface VersionFileEntry {
+    file: File | null;
+    platform: string;
+    architecture: string;
+}
 
 export interface VersionData {
     versionNumber: string;
     releaseNotes: string;
+    files: VersionFileEntry[];
+    // Legacy fields kept for backward compat with draft loading
     platform: string;
     architecture: string;
     file: File | null;
@@ -28,6 +36,9 @@ export interface UploadStats {
     speed: number;
     elapsed: number;
     remaining: number;
+    currentFileName?: string;
+    currentIndex?: number;
+    totalFiles?: number;
 }
 
 interface StepVersionProps {
@@ -61,22 +72,25 @@ function formatTime(seconds: number): string {
 }
 
 export default function StepVersion({ data, onChange, uploadStats }: StepVersionProps) {
-    const fileInputRef = useRef<HTMLInputElement>(null);
-
-    function update(field: keyof VersionData, value: string) {
-        onChange({ ...data, [field]: value });
+    function addFile() {
+        onChange({
+            ...data,
+            files: [...data.files, { file: null, platform: "cross-platform", architecture: "x86_64" }],
+        });
     }
 
-    function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
-        const file = e.target.files?.[0];
-        if (file) {
-            onChange({ ...data, file });
-        }
+    function updateFile(index: number, updates: Partial<VersionFileEntry>) {
+        onChange({
+            ...data,
+            files: data.files.map((f, i) => i === index ? { ...f, ...updates } : f),
+        });
     }
 
-    function clearFile() {
-        onChange({ ...data, file: null });
-        if (fileInputRef.current) fileInputRef.current.value = "";
+    function removeFile(index: number) {
+        onChange({
+            ...data,
+            files: data.files.filter((_, i) => i !== index),
+        });
     }
 
     const isUploading = uploadStats !== null && uploadStats !== undefined;
@@ -84,49 +98,18 @@ export default function StepVersion({ data, onChange, uploadStats }: StepVersion
     return (
         <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
-                Add an initial version for this software. You can skip this step and add versions later.
+                Add an initial version for this software. You can add multiple files for different platforms. You can also skip this step and add versions later.
             </p>
 
-            <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                    <Label htmlFor="versionNumber">Version Number</Label>
-                    <Input
-                        id="versionNumber"
-                        value={data.versionNumber}
-                        onChange={(e) => update("versionNumber", e.target.value)}
-                        placeholder="e.g., 1.0.0"
-                        className="bg-muted/50 border-border/50"
-                    />
-                </div>
-                <div className="space-y-2">
-                    <Label>Platform</Label>
-                    <Select value={data.platform} onValueChange={(v) => update("platform", v)}>
-                        <SelectTrigger className="bg-muted/50 border-border/50">
-                            <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="windows">Windows</SelectItem>
-                            <SelectItem value="linux">Linux</SelectItem>
-                            <SelectItem value="macos">macOS</SelectItem>
-                            <SelectItem value="cross-platform">Cross-platform</SelectItem>
-                        </SelectContent>
-                    </Select>
-                </div>
-            </div>
-
             <div className="space-y-2">
-                <Label>Architecture</Label>
-                <Select value={data.architecture} onValueChange={(v) => update("architecture", v)}>
-                    <SelectTrigger className="bg-muted/50 border-border/50 w-1/2">
-                        <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="x86_64">x86_64</SelectItem>
-                        <SelectItem value="arm64">arm64</SelectItem>
-                        <SelectItem value="universal">Universal</SelectItem>
-                        <SelectItem value="other">Other</SelectItem>
-                    </SelectContent>
-                </Select>
+                <Label htmlFor="versionNumber">Version Number</Label>
+                <Input
+                    id="versionNumber"
+                    value={data.versionNumber}
+                    onChange={(e) => onChange({ ...data, versionNumber: e.target.value })}
+                    placeholder="e.g., 1.0.0"
+                    className="bg-muted/50 border-border/50"
+                />
             </div>
 
             <div className="space-y-2">
@@ -134,108 +117,142 @@ export default function StepVersion({ data, onChange, uploadStats }: StepVersion
                 <Textarea
                     id="releaseNotes"
                     value={data.releaseNotes}
-                    onChange={(e) => update("releaseNotes", e.target.value)}
+                    onChange={(e) => onChange({ ...data, releaseNotes: e.target.value })}
                     placeholder="What's new in this version..."
                     rows={3}
                     className="bg-muted/50 border-border/50"
                 />
             </div>
 
-            <div className="space-y-2">
-                <Label>File Upload</Label>
-                {isUploading ? (
-                    <div className="rounded-lg border border-border/50 bg-muted/50 overflow-hidden">
-                        {/* Progress bar */}
-                        <div className="w-full bg-muted h-2">
-                            <div
-                                className="bg-foreground h-2 transition-all duration-300 ease-out"
-                                style={{ width: `${uploadStats.percent}%` }}
-                            />
-                        </div>
-
-                        <div className="p-4 space-y-3">
-                            {/* File name and percentage */}
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2 min-w-0">
-                                    <Loader2 className="h-4 w-4 text-muted-foreground animate-spin flex-shrink-0" />
-                                    <span className="text-sm font-medium truncate">{data.file?.name}</span>
-                                </div>
-                                <span className="text-sm font-mono font-medium tabular-nums flex-shrink-0 ml-3">
-                                    {uploadStats.percent}%
+            {/* Upload progress */}
+            {isUploading && (
+                <div className="rounded-lg border border-border/50 bg-muted/50 overflow-hidden">
+                    <div className="w-full bg-muted h-2">
+                        <div
+                            className="bg-foreground h-2 transition-all duration-300 ease-out"
+                            style={{ width: `${uploadStats.percent}%` }}
+                        />
+                    </div>
+                    <div className="p-4 space-y-3">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2 min-w-0">
+                                <Loader2 className="h-4 w-4 text-muted-foreground animate-spin flex-shrink-0" />
+                                <span className="text-sm font-medium truncate">
+                                    {uploadStats.currentFileName || "Uploading..."}
+                                    {uploadStats.totalFiles && uploadStats.totalFiles > 1 && (
+                                        <span className="text-muted-foreground"> ({uploadStats.currentIndex}/{uploadStats.totalFiles})</span>
+                                    )}
                                 </span>
                             </div>
-
-                            {/* Stats grid */}
-                            <div className="grid grid-cols-3 gap-3">
-                                <div className="flex items-center gap-2 rounded-md bg-background/50 px-3 py-2 border border-border/30">
-                                    <ArrowUp className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
-                                    <div className="min-w-0">
-                                        <p className="text-[11px] text-muted-foreground leading-none mb-0.5">Speed</p>
-                                        <p className="text-xs font-mono font-medium tabular-nums truncate">
-                                            {formatSpeed(uploadStats.speed)}
-                                        </p>
-                                    </div>
-                                </div>
-                                <div className="flex items-center gap-2 rounded-md bg-background/50 px-3 py-2 border border-border/30">
-                                    <HardDrive className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
-                                    <div className="min-w-0">
-                                        <p className="text-[11px] text-muted-foreground leading-none mb-0.5">Transferred</p>
-                                        <p className="text-xs font-mono font-medium tabular-nums truncate">
-                                            {formatBytes(uploadStats.loaded)} / {formatBytes(uploadStats.total)}
-                                        </p>
-                                    </div>
-                                </div>
-                                <div className="flex items-center gap-2 rounded-md bg-background/50 px-3 py-2 border border-border/30">
-                                    <Clock className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
-                                    <div className="min-w-0">
-                                        <p className="text-[11px] text-muted-foreground leading-none mb-0.5">Remaining</p>
-                                        <p className="text-xs font-mono font-medium tabular-nums truncate">
-                                            {formatTime(uploadStats.remaining)}
-                                        </p>
-                                    </div>
+                            <span className="text-sm font-mono font-medium tabular-nums flex-shrink-0 ml-3">
+                                {uploadStats.percent}%
+                            </span>
+                        </div>
+                        <div className="grid grid-cols-3 gap-3">
+                            <div className="flex items-center gap-2 rounded-md bg-background/50 px-3 py-2 border border-border/30">
+                                <ArrowUp className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                                <div className="min-w-0">
+                                    <p className="text-[11px] text-muted-foreground leading-none mb-0.5">Speed</p>
+                                    <p className="text-xs font-mono font-medium tabular-nums truncate">{formatSpeed(uploadStats.speed)}</p>
                                 </div>
                             </div>
-
-                            {/* Elapsed time */}
-                            <p className="text-[11px] text-muted-foreground text-right">
-                                Elapsed: {formatTime(uploadStats.elapsed)}
-                            </p>
+                            <div className="flex items-center gap-2 rounded-md bg-background/50 px-3 py-2 border border-border/30">
+                                <HardDrive className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                                <div className="min-w-0">
+                                    <p className="text-[11px] text-muted-foreground leading-none mb-0.5">Transferred</p>
+                                    <p className="text-xs font-mono font-medium tabular-nums truncate">{formatBytes(uploadStats.loaded)} / {formatBytes(uploadStats.total)}</p>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-2 rounded-md bg-background/50 px-3 py-2 border border-border/30">
+                                <Clock className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                                <div className="min-w-0">
+                                    <p className="text-[11px] text-muted-foreground leading-none mb-0.5">Remaining</p>
+                                    <p className="text-xs font-mono font-medium tabular-nums truncate">{formatTime(uploadStats.remaining)}</p>
+                                </div>
+                            </div>
                         </div>
+                        <p className="text-[11px] text-muted-foreground text-right">Elapsed: {formatTime(uploadStats.elapsed)}</p>
                     </div>
-                ) : data.file ? (
-                    <div className="flex items-center gap-3 p-3 rounded-lg border border-border/50 bg-muted/50">
-                        <FileArchive className="h-5 w-5 text-muted-foreground" />
-                        <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium truncate">{data.file.name}</p>
-                            <p className="text-xs text-muted-foreground">
-                                {formatBytes(data.file.size)}
-                            </p>
-                        </div>
+                </div>
+            )}
+
+            {/* File entries */}
+            {!isUploading && (
+                <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                        <Label>Files</Label>
+                        <Button type="button" variant="ghost" size="sm" className="h-7 text-xs" onClick={addFile}>
+                            <Plus className="h-3 w-3 mr-1" /> Add File
+                        </Button>
+                    </div>
+
+                    {data.files.length === 0 && (
                         <button
                             type="button"
-                            onClick={clearFile}
-                            className="h-6 w-6 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center"
+                            onClick={addFile}
+                            className="w-full p-6 rounded-lg border-2 border-dashed border-border/50 flex flex-col items-center gap-2 hover:border-foreground/30 transition-colors"
                         >
-                            <X className="h-3 w-3" />
+                            <FileArchive className="h-6 w-6 text-muted-foreground" />
+                            <span className="text-sm text-muted-foreground">Click to add a file</span>
                         </button>
-                    </div>
-                ) : (
-                    <button
-                        type="button"
-                        onClick={() => fileInputRef.current?.click()}
-                        className="w-full p-6 rounded-lg border-2 border-dashed border-border/50 flex flex-col items-center gap-2 hover:border-foreground/30 transition-colors"
-                    >
-                        <Upload className="h-6 w-6 text-muted-foreground" />
-                        <span className="text-sm text-muted-foreground">Click to upload the software file</span>
-                    </button>
-                )}
-                <input
-                    ref={fileInputRef}
-                    type="file"
-                    onChange={handleFileSelect}
-                    className="hidden"
-                />
-            </div>
+                    )}
+
+                    {data.files.map((entry, i) => (
+                        <div key={i} className="rounded-lg border border-border/50 bg-muted/30 p-3 space-y-2">
+                            <div className="flex items-center gap-2">
+                                {entry.file ? (
+                                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                                        <FileArchive className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-sm font-medium truncate">{entry.file.name}</p>
+                                            <p className="text-xs text-muted-foreground">{formatBytes(entry.file.size)}</p>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <Input
+                                        type="file"
+                                        className="bg-muted/50 border-border/50 flex-1 text-xs"
+                                        onChange={(e) => {
+                                            const file = e.target.files?.[0];
+                                            if (file) updateFile(i, { file });
+                                        }}
+                                    />
+                                )}
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 text-muted-foreground hover:text-destructive flex-shrink-0"
+                                    onClick={() => removeFile(i)}
+                                >
+                                    {entry.file ? <X className="h-3.5 w-3.5" /> : <Trash2 className="h-3.5 w-3.5" />}
+                                </Button>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                                <Select value={entry.platform} onValueChange={(v) => updateFile(i, { platform: v })}>
+                                    <SelectTrigger className="bg-muted/50 border-border/50 h-8 text-xs"><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="windows">Windows</SelectItem>
+                                        <SelectItem value="linux">Linux</SelectItem>
+                                        <SelectItem value="macos">macOS (Intel)</SelectItem>
+                                        <SelectItem value="macos-arm">macOS (Apple Silicon)</SelectItem>
+                                        <SelectItem value="cross-platform">Cross-platform</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <Select value={entry.architecture} onValueChange={(v) => updateFile(i, { architecture: v })}>
+                                    <SelectTrigger className="bg-muted/50 border-border/50 h-8 text-xs"><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="x86_64">x86_64</SelectItem>
+                                        <SelectItem value="arm64">ARM64</SelectItem>
+                                        <SelectItem value="universal">Universal</SelectItem>
+                                        <SelectItem value="other">Other</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
         </div>
     );
 }

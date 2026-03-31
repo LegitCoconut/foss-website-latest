@@ -13,10 +13,22 @@ declare module "next-auth" {
     }
 }
 
+export interface VersionFile {
+    _id: string;
+    fileKey: string;
+    fileName: string;
+    fileSize: number;
+    checksum: string;
+    platform: string;
+    architecture: string;
+}
+
 export interface SoftwareVersion {
     _id: string;
     versionNumber: string;
     releaseNotes: string;
+    files: VersionFile[];
+    // Legacy single-file fields
     fileKey: string;
     fileName: string;
     fileSize: number;

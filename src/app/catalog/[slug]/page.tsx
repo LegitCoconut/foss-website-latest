@@ -200,15 +200,18 @@ export default function SoftwareDetailPage() {
             .finally(() => setLoading(false));
     }, [params.slug]);
 
-    async function handleDownload(version: SoftwareVersion) {
+    async function handleDownload(versionId: string, fileId?: string) {
         if (!session?.user) {
             toast.error("Please sign in to download");
             return;
         }
 
-        setDownloading(version._id);
+        setDownloading(fileId || versionId);
         try {
-            const res = await fetch(`/api/download/${version._id}`);
+            const url = fileId
+                ? `/api/download/${versionId}?fileId=${fileId}`
+                : `/api/download/${versionId}`;
+            const res = await fetch(url);
             const data = await res.json();
 
             if (!res.ok) {
@@ -258,57 +261,121 @@ export default function SoftwareDetailPage() {
     const featuredVersion = defaultVersion || activeVersions[activeVersions.length - 1] || null;
     const otherVersions = activeVersions.filter((v) => v._id !== featuredVersion?._id);
 
+    const platformLabels: Record<string, string> = {
+        windows: "Windows",
+        linux: "Linux",
+        macos: "macOS (Intel)",
+        "macos-arm": "macOS (Apple Silicon)",
+        "cross-platform": "Cross-platform",
+    };
+
     function VersionCard({ version, prominent }: { version: SoftwareVersion; prominent?: boolean }) {
+        const hasFiles = version.files && version.files.length > 0;
+        const isLegacy = !hasFiles && version.fileKey;
+
         return (
-            <Card className={prominent ? "border-white/10 bg-white/[0.03]" : "border-white/10 bg-white/[0.03]"}>
+            <Card className="border-white/10 bg-white/[0.03]">
                 <CardHeader>
                     <div className="flex items-center justify-between">
-                        <CardTitle className="text-lg">
-                            Version {version.versionNumber}
-                            {prominent && defaultVersion && (
-                                <Badge className="ml-2 bg-yellow-500/10 text-yellow-400 border-yellow-500/20 text-[10px]">
-                                    Recommended
-                                </Badge>
-                            )}
-                        </CardTitle>
-                        <Button
-                            onClick={() => handleDownload(version)}
-                            disabled={downloading === version._id}
-                            className={prominent
-                                ? "bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
-                                : ""}
-                            variant={prominent ? "default" : "outline"}
-                        >
-                            {downloading === version._id ? (
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            ) : (
-                                <Download className="mr-2 h-4 w-4" />
-                            )}
-                            Download
-                        </Button>
+                        <div>
+                            <CardTitle className="text-lg">
+                                Version {version.versionNumber}
+                                {prominent && defaultVersion && (
+                                    <Badge className="ml-2 bg-yellow-500/10 text-yellow-400 border-yellow-500/20 text-[10px]">
+                                        Recommended
+                                    </Badge>
+                                )}
+                            </CardTitle>
+                            <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                                <Calendar className="h-3 w-3" />
+                                {new Date(version.createdAt).toLocaleDateString()}
+                            </p>
+                        </div>
+                        {/* Single download button for legacy or single-file versions */}
+                        {(isLegacy || (hasFiles && version.files.length === 1)) && (
+                            <Button
+                                onClick={() => handleDownload(version._id, hasFiles ? version.files[0]._id : undefined)}
+                                disabled={downloading === version._id || downloading === version.files?.[0]?._id}
+                                className={prominent
+                                    ? "bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
+                                    : ""}
+                                variant={prominent ? "default" : "outline"}
+                            >
+                                {(downloading === version._id || downloading === version.files?.[0]?._id) ? (
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                ) : (
+                                    <Download className="mr-2 h-4 w-4" />
+                                )}
+                                Download
+                            </Button>
+                        )}
                     </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
-                        <div className="flex items-center gap-2 text-muted-foreground">
-                            <HardDrive className="h-4 w-4 flex-shrink-0" />
-                            <span>{formatBytes(version.fileSize)}</span>
+                    {/* Multi-file download list */}
+                    {hasFiles && version.files.length > 1 && (
+                        <div className="space-y-2">
+                            {version.files.map((f) => (
+                                <div key={f._id} className="flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-white/[0.02] p-3">
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-medium truncate">{f.fileName}</p>
+                                        <div className="flex items-center gap-2 mt-1 flex-wrap">
+                                            <Badge variant="secondary" className="text-[10px] bg-white/5 border-white/10">
+                                                {platformLabels[f.platform] || f.platform}
+                                            </Badge>
+                                            <Badge variant="secondary" className="text-[10px] bg-white/5 border-white/10">
+                                                {f.architecture}
+                                            </Badge>
+                                            <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+                                                <HardDrive className="h-3 w-3" />
+                                                {formatBytes(f.fileSize)}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <Button
+                                        size="sm"
+                                        onClick={() => handleDownload(version._id, f._id)}
+                                        disabled={downloading === f._id}
+                                        className={prominent
+                                            ? "bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
+                                            : ""}
+                                        variant={prominent ? "default" : "outline"}
+                                    >
+                                        {downloading === f._id ? (
+                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                        ) : (
+                                            <Download className="h-4 w-4" />
+                                        )}
+                                    </Button>
+                                </div>
+                            ))}
                         </div>
-                        <div className="flex items-center gap-2 text-muted-foreground">
-                            <Monitor className="h-4 w-4 flex-shrink-0" />
-                            <span className="capitalize">{version.platform}</span>
-                        </div>
-                        <div className="flex items-center gap-2 text-muted-foreground">
-                            <Cpu className="h-4 w-4 flex-shrink-0" />
-                            <span>{version.architecture}</span>
-                        </div>
-                        <div className="flex items-center gap-2 text-muted-foreground">
-                            <Calendar className="h-4 w-4 flex-shrink-0" />
-                            <span>{new Date(version.createdAt).toLocaleDateString()}</span>
-                        </div>
-                    </div>
+                    )}
 
-                    {version.checksum && (
+                    {/* Single-file/legacy metadata */}
+                    {(isLegacy || (hasFiles && version.files.length === 1)) && (
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
+                            <div className="flex items-center gap-2 text-muted-foreground">
+                                <HardDrive className="h-4 w-4 flex-shrink-0" />
+                                <span>{formatBytes(hasFiles ? version.files[0].fileSize : version.fileSize)}</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-muted-foreground">
+                                <Monitor className="h-4 w-4 flex-shrink-0" />
+                                <span>{platformLabels[hasFiles ? version.files[0].platform : version.platform] || (hasFiles ? version.files[0].platform : version.platform)}</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-muted-foreground">
+                                <Cpu className="h-4 w-4 flex-shrink-0" />
+                                <span>{hasFiles ? version.files[0].architecture : version.architecture}</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-muted-foreground">
+                                <Calendar className="h-4 w-4 flex-shrink-0" />
+                                <span>{new Date(version.createdAt).toLocaleDateString()}</span>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Checksum for single file */}
+                    {isLegacy && version.checksum && (
                         <>
                             <Separator className="bg-white/10" />
                             <div className="text-sm">

@@ -1,9 +1,38 @@
 import mongoose, { Schema, Document, Model } from "mongoose";
 
+export interface IVersionFile {
+    _id: mongoose.Types.ObjectId;
+    fileKey: string;
+    fileName: string;
+    fileSize: number;
+    checksum: string;
+    platform: string;
+    architecture: string;
+}
+
+const VersionFileSchema = new Schema<IVersionFile>({
+    fileKey: { type: String, required: true },
+    fileName: { type: String, required: true },
+    fileSize: { type: Number, required: true },
+    checksum: { type: String, default: "" },
+    platform: {
+        type: String,
+        enum: ["windows", "linux", "macos", "macos-arm", "cross-platform"],
+        default: "cross-platform",
+    },
+    architecture: {
+        type: String,
+        enum: ["x86_64", "arm64", "universal", "other"],
+        default: "x86_64",
+    },
+});
+
 export interface IVersion {
     _id: mongoose.Types.ObjectId;
     versionNumber: string;
     releaseNotes: string;
+    files: IVersionFile[];
+    // Legacy single-file fields (kept for backward compatibility)
     fileKey: string;
     fileName: string;
     fileSize: number;
@@ -24,17 +53,22 @@ const VersionSchema = new Schema<IVersion>(
             type: String,
             default: "",
         },
+        files: {
+            type: [VersionFileSchema],
+            default: [],
+        },
+        // Legacy fields for backward compat
         fileKey: {
             type: String,
-            required: [true, "File key is required"],
+            default: "",
         },
         fileName: {
             type: String,
-            required: [true, "File name is required"],
+            default: "",
         },
         fileSize: {
             type: Number,
-            required: [true, "File size is required"],
+            default: 0,
         },
         checksum: {
             type: String,
@@ -42,7 +76,7 @@ const VersionSchema = new Schema<IVersion>(
         },
         platform: {
             type: String,
-            enum: ["windows", "linux", "macos", "cross-platform"],
+            enum: ["windows", "linux", "macos", "macos-arm", "cross-platform"],
             default: "cross-platform",
         },
         architecture: {
@@ -172,7 +206,10 @@ SoftwareSchema.index({ slug: 1 });
 SoftwareSchema.index({ category: 1 });
 SoftwareSchema.index({ name: "text", description: "text" });
 
-const Software: Model<ISoftware> =
-    mongoose.models.Software || mongoose.model<ISoftware>("Software", SoftwareSchema);
+// Delete cached model in dev to pick up schema changes on hot reload
+if (mongoose.models.Software) {
+    delete mongoose.models.Software;
+}
+const Software: Model<ISoftware> = mongoose.model<ISoftware>("Software", SoftwareSchema);
 
 export default Software;
