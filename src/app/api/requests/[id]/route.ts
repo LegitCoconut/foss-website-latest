@@ -23,7 +23,7 @@ export async function PATCH(
                 status: body.status,
                 adminNotes: body.adminNotes,
             },
-            { new: true }
+            { returnDocument: "after" }
         );
 
         if (!request) {

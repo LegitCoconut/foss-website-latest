@@ -51,7 +51,7 @@ export async function PATCH(req: Request) {
         await dbConnect();
 
         const hashedPassword = await bcrypt.hash(newPassword, 12);
-        const user = await User.findByIdAndUpdate(userId, { password: hashedPassword });
+        const user = await User.findByIdAndUpdate(userId, { password: hashedPassword }, { returnDocument: "after" });
 
         if (!user) {
             return NextResponse.json({ error: "User not found" }, { status: 404 });

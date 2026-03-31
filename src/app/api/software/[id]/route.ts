@@ -64,7 +64,7 @@ export async function PUT(
         const body = await req.json();
 
         const software = await Software.findByIdAndUpdate(id, body, {
-            new: true,
+            returnDocument: "after",
             runValidators: true,
         });
 
