@@ -17,7 +17,7 @@ const VersionFileSchema = new Schema<IVersionFile>({
     checksum: { type: String, default: "" },
     platform: {
         type: String,
-        enum: ["windows", "linux", "macos", "macos-arm", "cross-platform"],
+        enum: ["windows", "linux", "macos", "macos-arm", "cross-platform", "android"],
         default: "cross-platform",
     },
     architecture: {
@@ -76,7 +76,7 @@ const VersionSchema = new Schema<IVersion>(
         },
         platform: {
             type: String,
-            enum: ["windows", "linux", "macos", "macos-arm", "cross-platform"],
+            enum: ["windows", "linux", "macos", "macos-arm", "cross-platform", "android"],
             default: "cross-platform",
         },
         architecture: {
@@ -148,7 +148,7 @@ const SoftwareSchema = new Schema<ISoftware>(
         },
         platform: {
             type: [String],
-            enum: ["windows", "linux", "macos", "cross-platform"],
+            enum: ["windows", "linux", "macos", "macos-arm", "cross-platform", "android"],
             default: ["cross-platform"],
         },
         iconKey: {

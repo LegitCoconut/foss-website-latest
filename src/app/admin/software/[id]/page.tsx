@@ -470,6 +470,7 @@ export default function SoftwareDetailPage() {
                                                         <SelectItem value="macos">macOS (Intel)</SelectItem>
                                                         <SelectItem value="macos-arm">macOS (Apple Silicon)</SelectItem>
                                                         <SelectItem value="cross-platform">Cross-platform</SelectItem>
+                                                        <SelectItem value="android">Android (APK)</SelectItem>
                                                     </SelectContent>
                                                 </Select>
                                                 <Select value={pf.architecture} onValueChange={(v) => updateFileEntry(i, { architecture: v })}>

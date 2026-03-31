@@ -237,6 +237,7 @@ export default function StepVersion({ data, onChange, uploadStats }: StepVersion
                                         <SelectItem value="macos">macOS (Intel)</SelectItem>
                                         <SelectItem value="macos-arm">macOS (Apple Silicon)</SelectItem>
                                         <SelectItem value="cross-platform">Cross-platform</SelectItem>
+                                        <SelectItem value="android">Android (APK)</SelectItem>
                                     </SelectContent>
                                 </Select>
                                 <Select value={entry.architecture} onValueChange={(v) => updateFile(i, { architecture: v })}>

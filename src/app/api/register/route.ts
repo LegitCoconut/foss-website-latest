@@ -8,6 +8,7 @@ const registerSchema = z.object({
     name: z.string().min(2, "Name must be at least 2 characters"),
     email: z.string().email("Invalid email address"),
     password: z.string().min(6, "Password must be at least 6 characters"),
+    registerNumber: z.string().min(1, "Register number is required"),
 });
 
 export async function POST(req: Request) {
@@ -22,7 +23,7 @@ export async function POST(req: Request) {
             );
         }
 
-        const { name, email, password } = validation.data;
+        const { name, email, password, registerNumber } = validation.data;
 
         await dbConnect();
 
@@ -40,6 +41,7 @@ export async function POST(req: Request) {
             name,
             email,
             password: hashedPassword,
+            registerNumber,
         });
 
         return NextResponse.json(

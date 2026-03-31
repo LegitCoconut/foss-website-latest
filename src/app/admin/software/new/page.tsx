@@ -346,11 +346,17 @@ function NewSoftwarePage() {
                         return false;
                     }
 
+                    // Compute SHA-256
+                    const arrayBuffer = await file.arrayBuffer();
+                    const hashBuffer = await crypto.subtle.digest("SHA-256", arrayBuffer);
+                    const hashArray = Array.from(new Uint8Array(hashBuffer));
+                    const checksum = hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+
                     uploadedFiles.push({
                         fileKey,
                         fileName: file.name,
                         fileSize: file.size,
-                        checksum: "",
+                        checksum,
                         platform: entry.platform,
                         architecture: entry.architecture,
                     });

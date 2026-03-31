@@ -5,7 +5,9 @@ export interface IUser extends Document {
     name: string;
     email: string;
     password: string;
+    registerNumber: string;
     role: "user" | "admin";
+    status: "active" | "suspended";
     createdAt: Date;
     updatedAt: Date;
 }
@@ -29,10 +31,20 @@ const UserSchema = new Schema<IUser>(
             required: [true, "Password is required"],
             select: false,
         },
+        registerNumber: {
+            type: String,
+            default: "",
+            trim: true,
+        },
         role: {
             type: String,
             enum: ["user", "admin"],
             default: "user",
+        },
+        status: {
+            type: String,
+            enum: ["active", "suspended"],
+            default: "active",
         },
     },
     {
@@ -42,7 +54,9 @@ const UserSchema = new Schema<IUser>(
 
 UserSchema.index({ email: 1 });
 
-const User: Model<IUser> =
-    mongoose.models.User || mongoose.model<IUser>("User", UserSchema);
+if (mongoose.models.User) {
+    delete mongoose.models.User;
+}
+const User: Model<IUser> = mongoose.model<IUser>("User", UserSchema);
 
 export default User;

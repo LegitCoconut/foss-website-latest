@@ -267,6 +267,7 @@ export default function SoftwareDetailPage() {
         macos: "macOS (Intel)",
         "macos-arm": "macOS (Apple Silicon)",
         "cross-platform": "Cross-platform",
+        android: "Android (APK)",
     };
 
     function VersionCard({ version, prominent }: { version: SoftwareVersion; prominent?: boolean }) {
@@ -316,37 +317,47 @@ export default function SoftwareDetailPage() {
                     {hasFiles && version.files.length > 1 && (
                         <div className="space-y-2">
                             {version.files.map((f) => (
-                                <div key={f._id} className="flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-white/[0.02] p-3">
-                                    <div className="flex-1 min-w-0">
-                                        <p className="text-sm font-medium truncate">{f.fileName}</p>
-                                        <div className="flex items-center gap-2 mt-1 flex-wrap">
-                                            <Badge variant="secondary" className="text-[10px] bg-white/5 border-white/10">
-                                                {platformLabels[f.platform] || f.platform}
-                                            </Badge>
-                                            <Badge variant="secondary" className="text-[10px] bg-white/5 border-white/10">
-                                                {f.architecture}
-                                            </Badge>
-                                            <span className="text-[11px] text-muted-foreground flex items-center gap-1">
-                                                <HardDrive className="h-3 w-3" />
-                                                {formatBytes(f.fileSize)}
-                                            </span>
+                                <div key={f._id} className="rounded-lg border border-white/10 bg-white/[0.02] p-3">
+                                    <div className="flex items-center justify-between gap-3">
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-sm font-medium truncate">{f.fileName}</p>
+                                            <div className="flex items-center gap-2 mt-1 flex-wrap">
+                                                <Badge variant="secondary" className="text-[10px] bg-white/5 border-white/10">
+                                                    {platformLabels[f.platform] || f.platform}
+                                                </Badge>
+                                                <Badge variant="secondary" className="text-[10px] bg-white/5 border-white/10">
+                                                    {f.architecture}
+                                                </Badge>
+                                                <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+                                                    <HardDrive className="h-3 w-3" />
+                                                    {formatBytes(f.fileSize)}
+                                                </span>
+                                            </div>
                                         </div>
+                                        <Button
+                                            size="sm"
+                                            onClick={() => handleDownload(version._id, f._id)}
+                                            disabled={downloading === f._id}
+                                            className={prominent
+                                                ? "bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
+                                                : ""}
+                                            variant={prominent ? "default" : "outline"}
+                                        >
+                                            {downloading === f._id ? (
+                                                <Loader2 className="h-4 w-4 animate-spin" />
+                                            ) : (
+                                                <Download className="h-4 w-4" />
+                                            )}
+                                        </Button>
                                     </div>
-                                    <Button
-                                        size="sm"
-                                        onClick={() => handleDownload(version._id, f._id)}
-                                        disabled={downloading === f._id}
-                                        className={prominent
-                                            ? "bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
-                                            : ""}
-                                        variant={prominent ? "default" : "outline"}
-                                    >
-                                        {downloading === f._id ? (
-                                            <Loader2 className="h-4 w-4 animate-spin" />
-                                        ) : (
-                                            <Download className="h-4 w-4" />
-                                        )}
-                                    </Button>
+                                    {f.checksum && (
+                                        <div className="mt-2 text-[11px] text-muted-foreground">
+                                            <span>SHA256: </span>
+                                            <code className="font-mono bg-white/5 px-1.5 py-0.5 rounded break-all select-all">
+                                                {f.checksum}
+                                            </code>
+                                        </div>
+                                    )}
                                 </div>
                             ))}
                         </div>

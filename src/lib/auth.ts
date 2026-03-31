@@ -39,6 +39,11 @@ export const {
                     return null;
                 }
 
+                // Block suspended users
+                if (user.status === "suspended") {
+                    throw new Error("Account suspended");
+                }
+
                 return {
                     id: user._id.toString(),
                     name: user.name,
