@@ -112,6 +112,12 @@ export default function SoftwareDetailPage() {
     }
     const [pendingFiles, setPendingFiles] = useState<PendingFile[]>([]);
 
+    // Delete software state
+    const [showDeleteSoftware, setShowDeleteSoftware] = useState(false);
+    const [deleteSoftwarePassword, setDeleteSoftwarePassword] = useState("");
+    const [deleteSoftwareConfirm, setDeleteSoftwareConfirm] = useState("");
+    const [deletingSoftware, setDeletingSoftware] = useState(false);
+
     // Delete version dialog state
     const [deleteVersionId, setDeleteVersionId] = useState<string | null>(null);
     const [deleting, setDeleting] = useState(false);
@@ -344,6 +350,29 @@ export default function SoftwareDetailPage() {
         }
     }
 
+    async function handleDeleteSoftware() {
+        if (!software) return;
+        setDeletingSoftware(true);
+        try {
+            const res = await fetch(`/api/software/${software._id}`, {
+                method: "DELETE",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ password: deleteSoftwarePassword, confirmText: deleteSoftwareConfirm }),
+            });
+            const data = await res.json();
+            if (res.ok) {
+                toast.success("Software deleted");
+                router.push("/admin/software");
+            } else {
+                toast.error(data.error || "Delete failed");
+            }
+        } catch {
+            toast.error("Something went wrong");
+        } finally {
+            setDeletingSoftware(false);
+        }
+    }
+
     async function handleSetDefault(versionId: string) {
         if (!software) return;
         try {
@@ -415,10 +444,16 @@ export default function SoftwareDetailPage() {
                         </div>
                     </div>
                 </div>
-                <Button variant="outline" size="sm" onClick={() => { setEditing(true); setEditCategory(software.category); }}>
-                    <Pencil className="mr-2 h-3.5 w-3.5" />
-                    Edit
-                </Button>
+                <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" onClick={() => { setEditing(true); setEditCategory(software.category); }}>
+                        <Pencil className="mr-2 h-3.5 w-3.5" />
+                        Edit
+                    </Button>
+                    <Button variant="outline" size="sm" className="text-destructive hover:text-destructive" onClick={() => { setShowDeleteSoftware(true); setDeleteSoftwarePassword(""); setDeleteSoftwareConfirm(""); }}>
+                        <Trash2 className="mr-2 h-3.5 w-3.5" />
+                        Delete
+                    </Button>
+                </div>
             </div>
 
             {/* Stats Row */}
@@ -477,48 +512,48 @@ export default function SoftwareDetailPage() {
                                 Add Version
                             </Button>
                         </DialogTrigger>
-                        <DialogContent className="border-border/50 bg-background">
+                        <DialogContent className="border-border/50 bg-background max-w-2xl w-full">
                             <DialogHeader>
-                                <DialogTitle>Upload New Version</DialogTitle>
-                                <DialogDescription>Add a new version with its release file.</DialogDescription>
+                                <DialogTitle className="text-lg">Upload New Version</DialogTitle>
+                                <DialogDescription>Add a new version with its release files.</DialogDescription>
                             </DialogHeader>
-                            <form onSubmit={handleAddVersion} className="space-y-4">
+                            <form onSubmit={handleAddVersion} className="space-y-5">
                                 <div className="space-y-2">
-                                    <Label>Version Number *</Label>
-                                    <Input name="versionNumber" placeholder="e.g., 24.04 LTS" required className="bg-muted/50 border-border/50" />
+                                    <Label className="text-sm font-medium">Version Number *</Label>
+                                    <Input name="versionNumber" placeholder="e.g., 24.04 LTS" required className="bg-muted/50 border-border/50 h-10 text-base" />
                                 </div>
 
                                 {/* Multi-file entries */}
                                 <div className="space-y-3">
                                     <div className="flex items-center justify-between">
-                                        <Label>Files *</Label>
-                                        <Button type="button" variant="ghost" size="sm" className="h-7 text-xs" onClick={addFileEntry}>
-                                            <Plus className="h-3 w-3 mr-1" /> Add File
+                                        <Label className="text-sm font-medium">Files *</Label>
+                                        <Button type="button" variant="ghost" size="sm" className="h-8 text-sm" onClick={addFileEntry}>
+                                            <Plus className="h-3.5 w-3.5 mr-1" /> Add File
                                         </Button>
                                     </div>
                                     {pendingFiles.length === 0 && (
-                                        <button type="button" onClick={addFileEntry} className="w-full p-4 rounded-lg border-2 border-dashed border-border/50 text-sm text-muted-foreground hover:border-foreground/30 transition-colors">
+                                        <button type="button" onClick={addFileEntry} className="w-full p-5 rounded-lg border-2 border-dashed border-border/50 text-base text-muted-foreground hover:border-foreground/30 transition-colors">
                                             Click to add a file
                                         </button>
                                     )}
                                     {pendingFiles.map((pf, i) => (
-                                        <div key={i} className="rounded-lg border border-border/50 bg-muted/30 p-3 space-y-2">
+                                        <div key={i} className="rounded-lg border border-border/50 bg-muted/30 p-4 space-y-3">
                                             <div className="flex items-center gap-2">
                                                 <Input
                                                     type="file"
-                                                    className="bg-muted/50 border-border/50 flex-1 text-xs"
+                                                    className="bg-muted/50 border-border/50 flex-1 text-sm"
                                                     onChange={(e) => {
                                                         const file = e.target.files?.[0];
                                                         if (file) updateFileEntry(i, { file });
                                                     }}
                                                 />
-                                                <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive flex-shrink-0" onClick={() => removeFileEntry(i)}>
-                                                    <Trash2 className="h-3.5 w-3.5" />
+                                                <Button type="button" variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground hover:text-destructive flex-shrink-0" onClick={() => removeFileEntry(i)}>
+                                                    <Trash2 className="h-4 w-4" />
                                                 </Button>
                                             </div>
-                                            <div className="grid grid-cols-2 gap-2">
+                                            <div className="grid grid-cols-2 gap-3">
                                                 <Select value={pf.platform} onValueChange={(v) => updateFileEntry(i, { platform: v })}>
-                                                    <SelectTrigger className="bg-muted/50 border-border/50 h-8 text-xs"><SelectValue /></SelectTrigger>
+                                                    <SelectTrigger className="bg-muted/50 border-border/50 h-9 text-sm"><SelectValue /></SelectTrigger>
                                                     <SelectContent>
                                                         <SelectItem value="windows">Windows</SelectItem>
                                                         <SelectItem value="linux">Linux</SelectItem>
@@ -529,7 +564,7 @@ export default function SoftwareDetailPage() {
                                                     </SelectContent>
                                                 </Select>
                                                 <Select value={pf.architecture} onValueChange={(v) => updateFileEntry(i, { architecture: v })}>
-                                                    <SelectTrigger className="bg-muted/50 border-border/50 h-8 text-xs"><SelectValue /></SelectTrigger>
+                                                    <SelectTrigger className="bg-muted/50 border-border/50 h-9 text-sm"><SelectValue /></SelectTrigger>
                                                     <SelectContent>
                                                         <SelectItem value="x86_64">x86_64</SelectItem>
                                                         <SelectItem value="arm64">ARM64</SelectItem>
@@ -539,7 +574,7 @@ export default function SoftwareDetailPage() {
                                                 </Select>
                                             </div>
                                             {pf.file && (
-                                                <p className="text-[11px] text-muted-foreground truncate">
+                                                <p className="text-xs text-muted-foreground truncate">
                                                     {pf.file.name} ({(pf.file.size / (1024 * 1024)).toFixed(2)} MB)
                                                 </p>
                                             )}
@@ -547,41 +582,33 @@ export default function SoftwareDetailPage() {
                                     ))}
                                 </div>
                                 <div className="space-y-2">
-                                    <Label>Release Notes</Label>
-                                    <Textarea name="releaseNotes" placeholder="What's new..." rows={3} className="bg-muted/50 border-border/50" />
+                                    <Label className="text-sm font-medium">Release Notes</Label>
+                                    <Textarea name="releaseNotes" placeholder="What's new..." rows={3} className="bg-muted/50 border-border/50 text-sm" />
                                 </div>
                                 {/* Upload Progress */}
                                 {uploadProgress && (
                                     <div className="rounded-lg border border-border/50 bg-muted/50 overflow-hidden">
-                                        <div className="w-full bg-muted h-2">
-                                            <div className="bg-foreground h-2 transition-all duration-300 ease-out" style={{ width: `${uploadProgress.percent}%` }} />
+                                        <div className="w-full bg-muted h-2.5">
+                                            <div className="bg-foreground h-2.5 transition-all duration-300 ease-out" style={{ width: `${uploadProgress.percent}%` }} />
                                         </div>
-                                        <div className="p-3 space-y-2">
+                                        <div className="p-4 space-y-3">
                                             <div className="flex items-center justify-between">
-                                                <div className="flex items-center gap-2 min-w-0">
-                                                    <Loader2 className="h-3.5 w-3.5 text-muted-foreground animate-spin flex-shrink-0" />
-                                                    <span className="text-xs font-medium truncate">
-                                                        {uploadProgress.currentFileName}
+                                                <div className="flex items-center gap-2.5 min-w-0">
+                                                    <Loader2 className="h-5 w-5 text-muted-foreground animate-spin flex-shrink-0" />
+                                                    <div className="min-w-0">
+                                                        <p className="text-sm font-medium truncate">
+                                                            {uploadProgress.currentFileName}
+                                                        </p>
                                                         {uploadProgress.totalFiles > 1 && (
-                                                            <span className="text-muted-foreground"> ({uploadProgress.currentIndex}/{uploadProgress.totalFiles})</span>
+                                                            <p className="text-xs text-muted-foreground">File {uploadProgress.currentIndex} of {uploadProgress.totalFiles}</p>
                                                         )}
-                                                    </span>
+                                                    </div>
                                                 </div>
-                                                <span className="text-xs font-mono font-medium tabular-nums ml-2">{uploadProgress.percent}%</span>
+                                                <span className="text-lg font-mono font-bold tabular-nums ml-3">{uploadProgress.percent}%</span>
                                             </div>
-                                            <div className="grid grid-cols-3 gap-2">
-                                                <div className="flex items-center gap-1.5 rounded bg-background/50 px-2 py-1 border border-border/30">
-                                                    <ArrowUp className="h-3 w-3 text-muted-foreground" />
-                                                    <span className="text-[10px] font-mono tabular-nums">{formatSpeed(uploadProgress.speed)}</span>
-                                                </div>
-                                                <div className="flex items-center gap-1.5 rounded bg-background/50 px-2 py-1 border border-border/30">
-                                                    <HardDrive className="h-3 w-3 text-muted-foreground" />
-                                                    <span className="text-[10px] font-mono tabular-nums">{formatBytes(uploadProgress.loaded)}/{formatBytes(uploadProgress.total)}</span>
-                                                </div>
-                                                <div className="flex items-center gap-1.5 rounded bg-background/50 px-2 py-1 border border-border/30">
-                                                    <Clock className="h-3 w-3 text-muted-foreground" />
-                                                    <span className="text-[10px] font-mono tabular-nums">{formatTime(uploadProgress.remaining)}</span>
-                                                </div>
+                                            <div className="flex items-center justify-between text-sm text-muted-foreground">
+                                                <span>{formatBytes(uploadProgress.loaded)} / {formatBytes(uploadProgress.total)}</span>
+                                                <span>{formatSpeed(uploadProgress.speed)} &middot; {formatTime(uploadProgress.remaining)} left</span>
                                             </div>
                                         </div>
                                     </div>
@@ -820,6 +847,60 @@ export default function SoftwareDetailPage() {
                             </Button>
                         </div>
                     </form>
+                </DialogContent>
+            </Dialog>
+
+            {/* Delete Software Dialog */}
+            <Dialog open={showDeleteSoftware} onOpenChange={setShowDeleteSoftware}>
+                <DialogContent className="border-border/50 bg-background max-w-md">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <AlertTriangle className="h-5 w-5 text-destructive" />
+                            Delete Software
+                        </DialogTitle>
+                        <DialogDescription>
+                            This will permanently delete <strong>{software.name}</strong> and all its versions, files, and assets from storage. This cannot be undone.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="delSwPassword">Admin Password</Label>
+                            <Input
+                                id="delSwPassword"
+                                type="password"
+                                value={deleteSoftwarePassword}
+                                onChange={(e) => setDeleteSoftwarePassword(e.target.value)}
+                                placeholder="Enter your password"
+                                className="bg-muted/50 border-border/50"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="delSwConfirm">
+                                Type <code className="text-xs bg-muted px-1.5 py-0.5 rounded text-destructive">delete {software.name}</code> to confirm
+                            </Label>
+                            <Input
+                                id="delSwConfirm"
+                                value={deleteSoftwareConfirm}
+                                onChange={(e) => setDeleteSoftwareConfirm(e.target.value)}
+                                placeholder={`delete ${software.name}`}
+                                className="bg-muted/50 border-border/50"
+                            />
+                        </div>
+                    </div>
+                    <div className="flex gap-2 pt-2">
+                        <Button variant="outline" className="flex-1" onClick={() => setShowDeleteSoftware(false)} disabled={deletingSoftware}>
+                            Cancel
+                        </Button>
+                        <Button
+                            variant="destructive"
+                            className="flex-1"
+                            onClick={handleDeleteSoftware}
+                            disabled={deletingSoftware || !deleteSoftwarePassword || deleteSoftwareConfirm.trim().toLowerCase() !== `delete ${software.name}`.toLowerCase()}
+                        >
+                            {deletingSoftware ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+                            Delete
+                        </Button>
+                    </div>
                 </DialogContent>
             </Dialog>
         </div>

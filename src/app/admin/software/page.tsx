@@ -17,7 +17,15 @@ import {
 } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Plus, Trash2, Package, LayoutGrid, List, Search, FileText } from "lucide-react";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Plus, Trash2, Package, LayoutGrid, List, Search, FileText, AlertTriangle, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import type { SoftwareItem } from "@/types";
 
@@ -61,6 +69,12 @@ export default function AdminSoftwarePage() {
     const [search, setSearch] = useState("");
     const [draftCount, setDraftCount] = useState(0);
 
+    // Delete dialog state
+    const [deleteTarget, setDeleteTarget] = useState<SoftwareItem | null>(null);
+    const [deletePassword, setDeletePassword] = useState("");
+    const [deleteConfirmText, setDeleteConfirmText] = useState("");
+    const [deleting, setDeleting] = useState(false);
+
     useEffect(() => {
         fetch("/api/software?limit=100&status=published")
             .then((r) => r.json())
@@ -72,20 +86,34 @@ export default function AdminSoftwarePage() {
             .then((data) => setDraftCount(data.pagination?.total ?? 0));
     }, []);
 
-    async function handleDelete(e: React.MouseEvent, id: string, name: string) {
+    function openDelete(e: React.MouseEvent, sw: SoftwareItem) {
         e.stopPropagation();
-        if (!confirm(`Delete "${name}" and all its versions? This cannot be undone.`)) return;
+        setDeleteTarget(sw);
+        setDeletePassword("");
+        setDeleteConfirmText("");
+    }
 
+    async function confirmDelete() {
+        if (!deleteTarget) return;
+        setDeleting(true);
         try {
-            const res = await fetch(`/api/software/${id}`, { method: "DELETE" });
+            const res = await fetch(`/api/software/${deleteTarget._id}`, {
+                method: "DELETE",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ password: deletePassword, confirmText: deleteConfirmText }),
+            });
+            const data = await res.json();
             if (res.ok) {
-                setSoftware(software.filter((s) => s._id !== id));
+                setSoftware(software.filter((s) => s._id !== deleteTarget._id));
                 toast.success("Software deleted");
+                setDeleteTarget(null);
             } else {
-                toast.error("Delete failed");
+                toast.error(data.error || "Delete failed");
             }
         } catch {
-            toast.error("Delete failed");
+            toast.error("Something went wrong");
+        } finally {
+            setDeleting(false);
         }
     }
 
@@ -221,7 +249,7 @@ export default function AdminSoftwarePage() {
                                                 variant="ghost"
                                                 size="icon"
                                                 className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                                                onClick={(e) => handleDelete(e, sw._id, sw.name)}
+                                                onClick={(e) => openDelete(e, sw)}
                                             >
                                                 <Trash2 className="h-4 w-4" />
                                             </Button>
@@ -254,7 +282,7 @@ export default function AdminSoftwarePage() {
                                         variant="ghost"
                                         size="icon"
                                         className="h-7 w-7 opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive flex-shrink-0"
-                                        onClick={(e) => handleDelete(e, sw._id, sw.name)}
+                                        onClick={(e) => openDelete(e, sw)}
                                     >
                                         <Trash2 className="h-3.5 w-3.5" />
                                     </Button>
@@ -277,6 +305,64 @@ export default function AdminSoftwarePage() {
             <p className="text-xs text-muted-foreground">
                 {filtered.length} of {software.length} software{software.length !== 1 ? "s" : ""}
             </p>
+
+            {/* Delete Confirmation Dialog */}
+            <Dialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
+                <DialogContent className="border-border/50 bg-background max-w-md">
+                    {deleteTarget && (
+                        <>
+                            <DialogHeader>
+                                <DialogTitle className="flex items-center gap-2">
+                                    <AlertTriangle className="h-5 w-5 text-destructive" />
+                                    Delete Software
+                                </DialogTitle>
+                                <DialogDescription>
+                                    This will permanently delete <strong>{deleteTarget.name}</strong> and all its versions, files, and assets from storage.
+                                </DialogDescription>
+                            </DialogHeader>
+                            <div className="space-y-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="delPassword">Admin Password</Label>
+                                    <Input
+                                        id="delPassword"
+                                        type="password"
+                                        value={deletePassword}
+                                        onChange={(e) => setDeletePassword(e.target.value)}
+                                        placeholder="Enter your password"
+                                        className="bg-muted/50 border-border/50"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="delConfirm">
+                                        Type <code className="text-xs bg-muted px-1.5 py-0.5 rounded text-destructive">delete {deleteTarget.name}</code> to confirm
+                                    </Label>
+                                    <Input
+                                        id="delConfirm"
+                                        value={deleteConfirmText}
+                                        onChange={(e) => setDeleteConfirmText(e.target.value)}
+                                        placeholder={`delete ${deleteTarget.name}`}
+                                        className="bg-muted/50 border-border/50"
+                                    />
+                                </div>
+                            </div>
+                            <div className="flex gap-2 pt-2">
+                                <Button variant="outline" className="flex-1" onClick={() => setDeleteTarget(null)} disabled={deleting}>
+                                    Cancel
+                                </Button>
+                                <Button
+                                    variant="destructive"
+                                    className="flex-1"
+                                    onClick={confirmDelete}
+                                    disabled={deleting || !deletePassword || deleteConfirmText.trim().toLowerCase() !== `delete ${deleteTarget.name}`.toLowerCase()}
+                                >
+                                    {deleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+                                    Delete
+                                </Button>
+                            </div>
+                        </>
+                    )}
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

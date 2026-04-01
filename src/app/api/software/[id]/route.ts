@@ -2,7 +2,9 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import dbConnect from "@/lib/db";
 import Software from "@/models/Software";
+import User from "@/models/User";
 import { deleteFile } from "@/lib/s3";
+import bcrypt from "bcryptjs";
 
 export async function GET(
     req: Request,
@@ -94,10 +96,33 @@ export async function DELETE(
         }
 
         await dbConnect();
+
+        // Verify admin password and confirmation text
+        const body = await req.json().catch(() => ({}));
+        const { password, confirmText } = body as { password?: string; confirmText?: string };
+
+        if (!password || !confirmText) {
+            return NextResponse.json({ error: "Password and confirmation text required" }, { status: 400 });
+        }
+
+        const user = await User.findById(session.user.id).select("+password");
+        if (!user) {
+            return NextResponse.json({ error: "User not found" }, { status: 404 });
+        }
+        const validPassword = await bcrypt.compare(password, user.password);
+        if (!validPassword) {
+            return NextResponse.json({ error: "Invalid password" }, { status: 401 });
+        }
+
         const software = await Software.findById(id);
 
         if (!software) {
             return NextResponse.json({ error: "Software not found" }, { status: 404 });
+        }
+
+        const expectedText = `delete ${software.name}`.toLowerCase();
+        if (confirmText.trim().toLowerCase() !== expectedText) {
+            return NextResponse.json({ error: `Please type: delete ${software.name}` }, { status: 400 });
         }
 
         // Delete all S3 files
