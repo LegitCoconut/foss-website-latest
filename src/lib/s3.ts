@@ -44,11 +44,15 @@ export async function deleteFile(bucket: string, key: string) {
 export async function getPresignedDownloadUrl(
     bucket: string,
     key: string,
-    expiresIn: number = 300
+    expiresIn: number = 300,
+    fileName?: string
 ) {
     const command = new GetObjectCommand({
         Bucket: bucket,
         Key: key,
+        ...(fileName && {
+            ResponseContentDisposition: `attachment; filename="${fileName.replace(/"/g, '\\"')}"`,
+        }),
     });
     return getSignedUrl(s3Client, command, { expiresIn });
 }

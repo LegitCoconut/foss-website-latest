@@ -25,6 +25,8 @@ export async function GET(req: Request) {
                 { softwareName: { $regex: search, $options: "i" } },
                 { ipAddress: { $regex: search, $options: "i" } },
                 { fileName: { $regex: search, $options: "i" } },
+                { teamName: { $regex: search, $options: "i" } },
+                { type: { $regex: search, $options: "i" } },
             ];
         }
 

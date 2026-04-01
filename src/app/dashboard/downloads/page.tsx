@@ -5,13 +5,16 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Download, Calendar, Package } from "lucide-react";
+import { Download, Calendar, Package, FolderArchive, Upload, ArrowDown } from "lucide-react";
 
 interface DownloadEntry {
     _id: string;
+    type: "software" | "team-upload" | "team-download";
     softwareName: string;
     versionNumber: string;
     softwareId: string;
+    teamName: string;
+    fileName: string;
     createdAt: string;
 }
 
@@ -66,19 +69,52 @@ export default function DownloadsPage() {
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead>Software</TableHead>
-                                    <TableHead>Version</TableHead>
+                                    <TableHead>Name</TableHead>
+                                    <TableHead>Type</TableHead>
                                     <TableHead>Date</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {downloads.map((dl) => (
                                     <TableRow key={dl._id}>
-                                        <TableCell className="font-medium">{dl.softwareName}</TableCell>
                                         <TableCell>
-                                            <Badge variant="outline" className="font-mono text-xs">
-                                                v{dl.versionNumber}
-                                            </Badge>
+                                            {dl.type === "software" || !dl.type ? (
+                                                <div className="flex items-center gap-2">
+                                                    <Package className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                                                    <span className="font-medium">{dl.softwareName}</span>
+                                                    {dl.versionNumber && (
+                                                        <Badge variant="outline" className="font-mono text-[10px]">v{dl.versionNumber}</Badge>
+                                                    )}
+                                                </div>
+                                            ) : (
+                                                <div className="flex items-center gap-2">
+                                                    <FolderArchive className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                                                    <div className="min-w-0">
+                                                        <span className="font-medium">{dl.teamName}</span>
+                                                        {dl.fileName && (
+                                                            <p className="text-xs text-muted-foreground truncate max-w-[200px]">{dl.fileName}</p>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </TableCell>
+                                        <TableCell>
+                                            {dl.type === "team-upload" ? (
+                                                <Badge variant="secondary" className="text-[10px] bg-blue-500/10 text-blue-400 border-blue-500/20">
+                                                    <Upload className="h-2.5 w-2.5 mr-1" />
+                                                    Upload
+                                                </Badge>
+                                            ) : dl.type === "team-download" ? (
+                                                <Badge variant="secondary" className="text-[10px] bg-green-500/10 text-green-400 border-green-500/20">
+                                                    <ArrowDown className="h-2.5 w-2.5 mr-1" />
+                                                    Download
+                                                </Badge>
+                                            ) : (
+                                                <Badge variant="secondary" className="text-[10px]">
+                                                    <Download className="h-2.5 w-2.5 mr-1" />
+                                                    Software
+                                                </Badge>
+                                            )}
                                         </TableCell>
                                         <TableCell className="text-muted-foreground">
                                             <div className="flex items-center gap-1.5">

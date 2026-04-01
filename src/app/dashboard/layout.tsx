@@ -8,6 +8,7 @@ import {
     MessageSquare,
     Download,
     ChevronLeft,
+    FolderArchive,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -15,6 +16,7 @@ const dashboardLinks = [
     { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
     { href: "/dashboard/downloads", label: "My Downloads", icon: Download },
     { href: "/dashboard/requests", label: "My Requests", icon: MessageSquare },
+    { href: "/dashboard/team-storage", label: "Team Storage", icon: FolderArchive },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {

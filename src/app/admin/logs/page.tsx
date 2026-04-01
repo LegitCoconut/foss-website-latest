@@ -24,16 +24,21 @@ import {
     FileArchive,
     ChevronLeft,
     ChevronRight,
+    FolderArchive,
+    Upload,
+    ArrowDown,
 } from "lucide-react";
 
 interface LogEntry {
     _id: string;
+    type: "software" | "team-upload" | "team-download";
     userName: string;
     userEmail: string;
     ipAddress: string;
     softwareName: string;
     versionNumber: string;
     fileName: string;
+    teamName: string;
     createdAt: string;
 }
 
@@ -81,7 +86,7 @@ export default function LogsPage() {
     return (
         <div className="p-6 space-y-4">
             <div className="flex items-center justify-between">
-                <h1 className="text-2xl font-bold tracking-tight">Download Logs</h1>
+                <h1 className="text-2xl font-bold tracking-tight">Activity Logs</h1>
                 {pagination && (
                     <Badge variant="secondary" className="text-sm">{pagination.total} total</Badge>
                 )}
@@ -123,8 +128,8 @@ export default function LogsPage() {
                                 <TableRow>
                                     <TableHead>User</TableHead>
                                     <TableHead>IP Address</TableHead>
-                                    <TableHead>Software</TableHead>
-                                    <TableHead>File</TableHead>
+                                    <TableHead>Type</TableHead>
+                                    <TableHead>Details</TableHead>
                                     <TableHead>Date</TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -147,20 +152,45 @@ export default function LogsPage() {
                                             </div>
                                         </TableCell>
                                         <TableCell>
-                                            <div className="flex items-center gap-1.5">
-                                                <Package className="h-3 w-3 text-muted-foreground" />
-                                                <span className="text-sm">{log.softwareName}</span>
-                                                <Badge variant="secondary" className="text-[10px] px-1.5 py-0">v{log.versionNumber}</Badge>
-                                            </div>
+                                            {log.type === "team-upload" ? (
+                                                <Badge variant="secondary" className="text-[10px] bg-blue-500/10 text-blue-400 border-blue-500/20">
+                                                    <Upload className="h-2.5 w-2.5 mr-1" />
+                                                    Team Upload
+                                                </Badge>
+                                            ) : log.type === "team-download" ? (
+                                                <Badge variant="secondary" className="text-[10px] bg-purple-500/10 text-purple-400 border-purple-500/20">
+                                                    <ArrowDown className="h-2.5 w-2.5 mr-1" />
+                                                    Team Download
+                                                </Badge>
+                                            ) : (
+                                                <Badge variant="secondary" className="text-[10px]">
+                                                    <Download className="h-2.5 w-2.5 mr-1" />
+                                                    Software
+                                                </Badge>
+                                            )}
                                         </TableCell>
                                         <TableCell>
-                                            {log.fileName ? (
-                                                <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                                                    <FileArchive className="h-3 w-3" />
-                                                    <span className="truncate max-w-[200px]">{log.fileName}</span>
+                                            {log.type === "team-upload" || log.type === "team-download" ? (
+                                                <div className="flex items-center gap-1.5">
+                                                    <FolderArchive className="h-3 w-3 text-muted-foreground" />
+                                                    <span className="text-sm">{log.teamName}</span>
                                                 </div>
                                             ) : (
-                                                <span className="text-xs text-muted-foreground">—</span>
+                                                <div>
+                                                    <div className="flex items-center gap-1.5">
+                                                        <Package className="h-3 w-3 text-muted-foreground" />
+                                                        <span className="text-sm">{log.softwareName}</span>
+                                                        {log.versionNumber && (
+                                                            <Badge variant="secondary" className="text-[10px] px-1.5 py-0">v{log.versionNumber}</Badge>
+                                                        )}
+                                                    </div>
+                                                    {log.fileName && (
+                                                        <div className="flex items-center gap-1.5 mt-0.5 text-xs text-muted-foreground">
+                                                            <FileArchive className="h-2.5 w-2.5" />
+                                                            <span className="truncate max-w-[180px]">{log.fileName}</span>
+                                                        </div>
+                                                    )}
+                                                </div>
                                             )}
                                         </TableCell>
                                         <TableCell>

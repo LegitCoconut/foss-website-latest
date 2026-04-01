@@ -6,11 +6,14 @@ export interface IDownloadLog extends Document {
     userName: string;
     userEmail: string;
     ipAddress: string;
-    softwareId: mongoose.Types.ObjectId;
-    versionId: mongoose.Types.ObjectId;
+    type: "software" | "team-upload" | "team-download";
+    softwareId?: mongoose.Types.ObjectId;
+    versionId?: mongoose.Types.ObjectId;
     softwareName: string;
     versionNumber: string;
     fileName: string;
+    teamId?: mongoose.Types.ObjectId;
+    teamName: string;
     createdAt: Date;
 }
 
@@ -33,24 +36,35 @@ const DownloadLogSchema = new Schema<IDownloadLog>(
             type: String,
             default: "",
         },
+        type: {
+            type: String,
+            enum: ["software", "team-upload", "team-download"],
+            default: "software",
+        },
         softwareId: {
             type: Schema.Types.ObjectId,
             ref: "Software",
-            required: true,
         },
         versionId: {
             type: Schema.Types.ObjectId,
-            required: true,
         },
         softwareName: {
             type: String,
-            required: true,
+            default: "",
         },
         versionNumber: {
             type: String,
-            required: true,
+            default: "",
         },
         fileName: {
+            type: String,
+            default: "",
+        },
+        teamId: {
+            type: Schema.Types.ObjectId,
+            ref: "Team",
+        },
+        teamName: {
             type: String,
             default: "",
         },

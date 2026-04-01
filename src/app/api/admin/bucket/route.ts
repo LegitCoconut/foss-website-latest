@@ -4,6 +4,8 @@ import { s3Client, deleteFile } from "@/lib/s3";
 import { ListObjectsV2Command } from "@aws-sdk/client-s3";
 import dbConnect from "@/lib/db";
 import Software from "@/models/Software";
+import Team from "@/models/Team";
+import TeamFile from "@/models/TeamFile";
 import User from "@/models/User";
 import bcrypt from "bcryptjs";
 
@@ -83,6 +85,17 @@ export async function GET() {
                     fileKeyMap.set(v.fileKey, { softwareName: sw.name, softwareId: id, detail: `v${v.versionNumber}` });
                 }
             }
+        }
+
+        // 3b. Build map for team storage file keys
+        const teamFiles = await TeamFile.find({}).select("fileKey teamId").lean();
+        const teamIds = [...new Set(teamFiles.map((tf) => tf.teamId.toString()))];
+        const teams = await Team.find({ _id: { $in: teamIds } }).select("name").lean();
+        const teamNameMap = new Map(teams.map((t) => [t._id.toString(), t.name]));
+
+        for (const tf of teamFiles) {
+            const teamName = teamNameMap.get(tf.teamId.toString()) || "Unknown Team";
+            fileKeyMap.set(tf.fileKey, { softwareName: teamName, softwareId: "", detail: "Team Storage" });
         }
 
         // 4. Enrich files

@@ -67,6 +67,11 @@ export default {
                 return role === "admin";
             }
 
+            const isOnApiTeamStorage = nextUrl.pathname.startsWith("/api/team-storage");
+            if (isOnApiTeamStorage) {
+                return isLoggedIn;
+            }
+
             return true;
         },
         jwt({ token, user }) {

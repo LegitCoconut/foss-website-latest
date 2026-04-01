@@ -20,9 +20,13 @@ export async function GET() {
         return NextResponse.json({
             downloads: downloads.map((d) => ({
                 _id: d._id,
+                type: d.type || "software",
                 softwareName: d.softwareName,
                 versionNumber: d.versionNumber,
                 softwareId: d.softwareId,
+                teamName: d.teamName || "",
+                teamId: d.teamId,
+                fileName: d.fileName || "",
                 createdAt: d.createdAt.toISOString(),
             })),
         });

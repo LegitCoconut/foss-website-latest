@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
@@ -17,6 +18,7 @@ import {
     Sun,
     Moon,
     ScrollText,
+    FolderArchive,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTheme } from "next-themes";
@@ -29,6 +31,7 @@ const adminLinks = [
     { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
     { href: "/admin/logs", label: "Logs", icon: ScrollText },
     { href: "/admin/bucket", label: "Bucket", icon: Database },
+    { href: "/admin/team-storage", label: "Team Storage", icon: FolderArchive },
     { href: "/admin/management", label: "Management", icon: ShieldPlus },
 ];
 
@@ -36,6 +39,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     const pathname = usePathname();
     const { data: session } = useSession();
     const { theme, setTheme } = useTheme();
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => setMounted(true), []);
 
     // Don't show sidebar/header on admin login page
     if (pathname === "/admin/login") {
@@ -131,8 +137,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                         onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
                         className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-foreground/[0.04] transition-colors"
                     >
-                        {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-                        {theme === "dark" ? "Light Mode" : "Dark Mode"}
+                        {mounted && theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+                        {mounted && theme === "dark" ? "Light Mode" : "Dark Mode"}
                     </button>
                 </aside>
 

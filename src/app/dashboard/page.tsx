@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Package, MessageSquarePlus, Calendar, Download } from "lucide-react";
+import { Package, MessageSquarePlus, Calendar, Download, FolderArchive, HardDrive } from "lucide-react";
+import type { TeamItem } from "@/types";
 
 interface RequestEntry {
     _id: string;
@@ -19,9 +20,19 @@ interface RequestEntry {
 
 interface DownloadEntry {
     _id: string;
+    type: "software" | "team-upload" | "team-download";
     softwareName: string;
     versionNumber: string;
+    teamName: string;
+    fileName: string;
     createdAt: string;
+}
+
+function formatBytes(bytes: number): string {
+    if (bytes === 0) return "0 B";
+    const units = ["B", "KB", "MB", "GB", "TB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(1024));
+    return `${(bytes / Math.pow(1024, i)).toFixed(i > 1 ? 1 : 0)} ${units[i]}`;
 }
 
 const statusVariant: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
@@ -35,16 +46,19 @@ export default function DashboardPage() {
     const { data: session } = useSession();
     const [requests, setRequests] = useState<RequestEntry[]>([]);
     const [downloads, setDownloads] = useState<DownloadEntry[]>([]);
+    const [teams, setTeams] = useState<TeamItem[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         Promise.all([
             fetch("/api/requests").then((r) => r.json()),
             fetch("/api/downloads").then((r) => r.json()),
+            fetch("/api/team-storage").then((r) => r.json()),
         ])
-            .then(([reqData, dlData]) => {
+            .then(([reqData, dlData, teamData]) => {
                 setRequests(reqData.requests || []);
                 setDownloads(dlData.downloads || []);
+                setTeams(teamData.teams || []);
             })
             .finally(() => setLoading(false));
     }, []);
@@ -88,6 +102,48 @@ export default function DashboardPage() {
                     </Card>
                 </Link>
             </div>
+
+            {/* Team Storage */}
+            {!loading && teams.length > 0 && (
+                <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                        <h2 className="text-base font-semibold">My Teams</h2>
+                        <Button asChild variant="ghost" size="sm">
+                            <Link href="/dashboard/team-storage">View All</Link>
+                        </Button>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                        {teams.map((team) => {
+                            const pct = team.storageLimit > 0 ? Math.min((team.totalStorageUsed / team.storageLimit) * 100, 100) : 0;
+                            return (
+                                <Link key={team._id} href={`/dashboard/team-storage/${team._id}`}>
+                                    <Card className="border-border/50 hover:bg-muted/50 transition cursor-pointer h-full">
+                                        <CardContent className="p-4 space-y-2.5">
+                                            <div className="flex items-center gap-2.5">
+                                                <div className="h-8 w-8 rounded-lg bg-foreground/[0.08] border border-border/50 flex items-center justify-center flex-shrink-0">
+                                                    <FolderArchive className="h-4 w-4 text-foreground/60" />
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <h3 className="text-sm font-medium truncate">{team.name}</h3>
+                                                    <p className="text-xs text-muted-foreground font-mono tabular-nums">
+                                                        {formatBytes(team.totalStorageUsed)} / {formatBytes(team.storageLimit)}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                                                <div
+                                                    className={`h-full rounded-full transition-all ${pct > 90 ? "bg-red-500" : pct > 70 ? "bg-yellow-500" : "bg-green-400/60"}`}
+                                                    style={{ width: `${pct}%` }}
+                                                />
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+                                </Link>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
 
             {/* Recent Requests */}
             <Card className="border-border/50">
@@ -144,7 +200,7 @@ export default function DashboardPage() {
             {/* Recent Downloads */}
             <Card className="border-border/50">
                 <CardHeader className="flex flex-row items-center justify-between pb-4">
-                    <CardTitle className="text-base font-semibold">My Downloads</CardTitle>
+                    <CardTitle className="text-base font-semibold">Recent Activity</CardTitle>
                     <Button asChild variant="ghost" size="sm">
                         <Link href="/dashboard/downloads">View All</Link>
                     </Button>
@@ -165,19 +221,30 @@ export default function DashboardPage() {
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead>Software</TableHead>
-                                    <TableHead>Version</TableHead>
+                                    <TableHead>Name</TableHead>
+                                    <TableHead>Type</TableHead>
                                     <TableHead>Date</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {downloads.slice(0, 5).map((dl) => (
                                     <TableRow key={dl._id}>
-                                        <TableCell className="font-medium">{dl.softwareName}</TableCell>
+                                        <TableCell className="font-medium">
+                                            {dl.type === "software" || !dl.type
+                                                ? dl.softwareName
+                                                : dl.teamName
+                                            }
+                                        </TableCell>
                                         <TableCell>
-                                            <Badge variant="outline" className="font-mono text-xs">
-                                                v{dl.versionNumber}
-                                            </Badge>
+                                            {dl.type === "team-upload" ? (
+                                                <Badge variant="outline" className="text-[10px]">Upload</Badge>
+                                            ) : dl.type === "team-download" ? (
+                                                <Badge variant="outline" className="text-[10px]">Team DL</Badge>
+                                            ) : (
+                                                <Badge variant="outline" className="font-mono text-[10px]">
+                                                    {dl.versionNumber ? `v${dl.versionNumber}` : "Software"}
+                                                </Badge>
+                                            )}
                                         </TableCell>
                                         <TableCell className="text-muted-foreground">
                                             <div className="flex items-center gap-1.5">

@@ -94,3 +94,35 @@ export interface AnalyticsData {
     pageVisitsOverTime: { date: string; count: number }[];
     softwarePageVisits: { slug: string; name: string; visits: number }[];
 }
+
+export interface TeamMember {
+    _id: string;
+    name: string;
+    email: string;
+}
+
+export interface TeamItem {
+    _id: string;
+    name: string;
+    description: string;
+    storageLimit: number;
+    status: "active" | "suspended";
+    members: TeamMember[];
+    memberCount: number;
+    fileCount: number;
+    totalStorageUsed: number;
+    createdAt: string;
+    updatedAt: string;
+}
+
+export interface TeamFileItem {
+    _id: string;
+    teamId: string;
+    uploadedBy: { _id: string; name: string; email: string };
+    fileKey: string;
+    fileName: string;
+    fileSize: number;
+    contentType: string;
+    description: string;
+    createdAt: string;
+}
