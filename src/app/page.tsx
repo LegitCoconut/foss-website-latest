@@ -1,7 +1,10 @@
+import { redirect } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { auth } from "@/lib/auth";
 import {
   Download,
   Shield,
@@ -14,7 +17,10 @@ import {
   ArrowRight,
   Users,
   HardDrive,
+  Star,
 } from "lucide-react";
+import dbConnect from "@/lib/db";
+import Software from "@/models/Software";
 
 const categories = [
   { slug: "operating-system", label: "Operating Systems", icon: Monitor },
@@ -23,6 +29,31 @@ const categories = [
   { slug: "utility", label: "Utilities", icon: Wrench },
   { slug: "multimedia", label: "Multimedia", icon: Film },
 ];
+
+const categoryIcons: Record<string, React.ElementType> = {
+  "operating-system": Monitor,
+  development: Code,
+  productivity: Zap,
+  utility: Wrench,
+  multimedia: Film,
+  other: Package,
+};
+
+const categoryColors: Record<string, string> = {
+  "operating-system": "from-blue-500 to-cyan-500",
+  development: "from-green-500 to-emerald-500",
+  productivity: "from-yellow-500 to-orange-500",
+  utility: "from-purple-500 to-pink-500",
+  multimedia: "from-red-500 to-rose-500",
+  other: "from-gray-500 to-slate-500",
+};
+
+function formatBytes(bytes: number): string {
+  if (bytes === 0) return "0 B";
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(1024));
+  return `${(bytes / Math.pow(1024, i)).toFixed(i > 1 ? 1 : 0)} ${units[i]}`;
+}
 
 const steps = [
   {
@@ -45,7 +76,36 @@ const steps = [
   },
 ];
 
-export default function HomePage() {
+export default async function HomePage() {
+  const session = await auth();
+  const role = (session?.user as { role?: string })?.role;
+  if (session?.user && role !== "admin") {
+    redirect("/catalog");
+  }
+
+  await dbConnect();
+  const featuredRaw = await Software.find({ isFeatured: true, status: "published" })
+    .sort({ createdAt: -1 })
+    .limit(6)
+    .lean();
+
+  const featured = featuredRaw.map((sw) => ({
+    _id: String(sw._id),
+    name: sw.name,
+    slug: sw.slug,
+    description: sw.description || "",
+    category: sw.category || "other",
+    iconKey: sw.iconKey || "",
+    isFeatured: true,
+    totalDownloads: sw.totalDownloads || 0,
+    versions: (sw.versions || [])
+      .filter((v: { isDeleted?: boolean }) => !v.isDeleted)
+      .map((v: { versionNumber?: string; fileSize?: number; files?: { fileSize?: number }[] }) => ({
+        versionNumber: v.versionNumber || "",
+        fileSize: v.fileSize || (v.files || []).reduce((sum: number, f: { fileSize?: number }) => sum + (f.fileSize || 0), 0),
+      })),
+  }));
+
   return (
     <div className="relative">
       {/* Hero */}
@@ -116,6 +176,80 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      {/* Featured Software */}
+      {featured.length > 0 && (
+        <section className="container mx-auto px-4 py-20">
+          <div className="text-center mb-12">
+            <Badge variant="secondary" className="px-3 py-1 text-xs font-medium mb-4">
+              <Star className="h-3 w-3 mr-1.5" />
+              Handpicked
+            </Badge>
+            <h2 className="text-2xl md:text-3xl font-bold tracking-tight mb-3">Featured Software</h2>
+            <p className="text-sm text-muted-foreground max-w-lg mx-auto">
+              Top picks from our catalog, curated by the team
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {featured.map((sw) => {
+              const Icon = categoryIcons[sw.category] || Package;
+              const color = categoryColors[sw.category] || categoryColors.other;
+              const latestVersion = sw.versions[0];
+
+              return (
+                <Link key={sw._id} href={`/catalog/${sw.slug}`}>
+                  <Card className="group border-border/50 hover:bg-muted/50 transition-all duration-300 hover:border-foreground/20 hover:shadow-lg cursor-pointer h-full">
+                    <CardContent className="p-5">
+                      <div className="flex items-start justify-between mb-3">
+                        {sw.iconKey ? (
+                          <div className="h-11 w-11 rounded-xl overflow-hidden shadow-lg group-hover:scale-105 transition-transform flex-shrink-0">
+                            <Image
+                              src={`/api/assets/${sw.iconKey}`}
+                              alt={sw.name}
+                              width={44}
+                              height={44}
+                              className="h-full w-full object-cover"
+                            />
+                          </div>
+                        ) : (
+                          <div className={`h-11 w-11 rounded-xl bg-gradient-to-br ${color} flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform`}>
+                            <Icon className="h-5 w-5 text-white" />
+                          </div>
+                        )}
+                        <Badge variant="secondary" className="text-[10px] bg-yellow-500/10 text-yellow-500 border-yellow-500/20">
+                          <Star className="h-2.5 w-2.5 mr-1" />
+                          Featured
+                        </Badge>
+                      </div>
+
+                      <h3 className="font-semibold mb-1 group-hover:text-foreground/80 transition-colors">
+                        {sw.name}
+                      </h3>
+                      <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
+                        {sw.description || "No description available"}
+                      </p>
+
+                      <div className="flex items-center justify-between text-xs text-muted-foreground">
+                        <div className="flex items-center gap-1">
+                          <Download className="h-3 w-3" />
+                          {sw.totalDownloads.toLocaleString()}
+                        </div>
+                        {latestVersion && (
+                          <span className="font-mono">
+                            v{latestVersion.versionNumber}
+                            {latestVersion.fileSize > 0 && ` \u00b7 ${formatBytes(latestVersion.fileSize)}`}
+                          </span>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </Link>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       {/* Categories */}
       <section className="container mx-auto px-4 py-20">

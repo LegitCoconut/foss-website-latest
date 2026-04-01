@@ -80,7 +80,13 @@ export default function AdminRequestsPage() {
     const [requests, setRequests] = useState<RequestEntry[]>([]);
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState("all");
-    const [view, setView] = useState<"card" | "table">("card");
+    const [view, setView] = useState<"card" | "table">(() => {
+        if (typeof window !== "undefined") {
+            return (localStorage.getItem("admin-requests-view") as "card" | "table") || "card";
+        }
+        return "card";
+    });
+    function changeView(v: "card" | "table") { setView(v); localStorage.setItem("admin-requests-view", v); }
     const [selectedRequest, setSelectedRequest] = useState<RequestEntry | null>(null);
     const [noteText, setNoteText] = useState("");
     const [sendingNote, setSendingNote] = useState(false);
@@ -185,13 +191,13 @@ export default function AdminRequestsPage() {
                     </Select>
                     <div className="flex items-center border border-border/50 rounded-lg overflow-hidden">
                         <button
-                            onClick={() => setView("card")}
+                            onClick={() => changeView("card")}
                             className={`p-2 transition-colors ${view === "card" ? "bg-foreground/[0.08] text-foreground" : "text-muted-foreground hover:text-foreground"}`}
                         >
                             <LayoutGrid className="h-4 w-4" />
                         </button>
                         <button
-                            onClick={() => setView("table")}
+                            onClick={() => changeView("table")}
                             className={`p-2 transition-colors ${view === "table" ? "bg-foreground/[0.08] text-foreground" : "text-muted-foreground hover:text-foreground"}`}
                         >
                             <List className="h-4 w-4" />

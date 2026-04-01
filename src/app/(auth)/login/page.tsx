@@ -23,7 +23,7 @@ export default function LoginPage() {
             if (role === "admin") {
                 router.push("/admin");
             } else {
-                router.push("/dashboard");
+                router.push("/catalog");
             }
         }
     }, [session, router]);
@@ -54,7 +54,7 @@ export default function LoginPage() {
                 if (role === "admin") {
                     router.push("/admin");
                 } else {
-                    router.push("/dashboard");
+                    router.push("/catalog");
                 }
                 router.refresh();
             }

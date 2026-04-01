@@ -12,8 +12,8 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import Image from "next/image";
 import {
-    Package,
     Menu,
     LogOut,
     LayoutDashboard,
@@ -27,6 +27,7 @@ const navLinks = [
 ];
 
 const authNavLinks = [
+    { href: "/", label: "Home" },
     { href: "/catalog", label: "Catalog" },
     { href: "/dashboard", label: "My Dashboard" },
 ];
@@ -44,9 +45,13 @@ export function Navbar() {
         <header className="sticky top-0 z-50 w-full border-b border-border/50 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60">
             <div className="container mx-auto flex h-14 items-center justify-between px-4">
                 <Link href="/" className="flex items-center gap-2.5 group">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-foreground text-background transition-transform group-hover:scale-105">
-                        <Package className="h-4 w-4" />
-                    </div>
+                    <Image
+                        src="/foss.png"
+                        alt="FOSS Hub"
+                        width={32}
+                        height={32}
+                        className="h-8 w-8 transition-transform group-hover:scale-105"
+                    />
                     <span className="text-sm font-semibold tracking-tight">
                         FOSS Hub
                     </span>

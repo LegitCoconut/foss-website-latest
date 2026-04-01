@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Package } from "lucide-react";
+import Image from "next/image";
 
 export function Footer() {
     const pathname = usePathname();
@@ -15,9 +15,13 @@ export function Footer() {
             <div className="container mx-auto px-4 py-6">
                 <div className="flex flex-col md:flex-row items-center justify-between gap-4">
                     <div className="flex items-center gap-2">
-                        <div className="flex h-7 w-7 items-center justify-center rounded-md bg-foreground text-background">
-                            <Package className="h-3.5 w-3.5" />
-                        </div>
+                        <Image
+                            src="/foss.png"
+                            alt="FOSS Hub"
+                            width={28}
+                            height={28}
+                            className="h-7 w-7"
+                        />
                         <span className="text-sm font-semibold tracking-tight">
                             FOSS Hub
                         </span>

@@ -67,12 +67,21 @@ export async function GET(
             300
         );
 
+        // Get IP address from headers, normalize IPv6-mapped IPv4 (e.g. ::ffff:192.168.1.1 -> 192.168.1.1)
+        const forwarded = req.headers.get("x-forwarded-for");
+        const rawIp = forwarded ? forwarded.split(",")[0].trim() : req.headers.get("x-real-ip") || "unknown";
+        const ipAddress = rawIp.startsWith("::ffff:") ? rawIp.slice(7) : rawIp;
+
         await DownloadLog.create({
             userId: session.user.id,
+            userName: session.user.name || "",
+            userEmail: session.user.email || "",
+            ipAddress,
             softwareId: software._id,
             versionId: version._id,
             softwareName: software.name,
             versionNumber: version.versionNumber,
+            fileName,
         });
 
         await Software.updateOne(

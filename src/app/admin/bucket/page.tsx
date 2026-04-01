@@ -35,6 +35,8 @@ import {
     Trash2,
     AlertTriangle,
     Loader2,
+    ChevronLeft,
+    ChevronRight,
 } from "lucide-react";
 
 interface BucketFile {
@@ -74,6 +76,8 @@ export default function BucketManagementPage() {
     const [search, setSearch] = useState("");
     const [statusFilter, setStatusFilter] = useState<"all" | "linked" | "orphan">("all");
     const [bucketFilter, setBucketFilter] = useState<"all" | "files" | "assets">("all");
+    const [page, setPage] = useState(1);
+    const perPage = 20;
 
     // Delete dialog state
     const [deleteTarget, setDeleteTarget] = useState<BucketFile | null>(null);
@@ -172,6 +176,10 @@ export default function BucketManagementPage() {
         return matchesSearch && matchesStatus && matchesBucket;
     });
 
+    const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
+    const clampedPage = Math.min(page, totalPages);
+    const paginated = filtered.slice((clampedPage - 1) * perPage, clampedPage * perPage);
+
     return (
         <div className="p-6 space-y-4">
             <div className="flex items-center justify-between">
@@ -248,7 +256,7 @@ export default function BucketManagementPage() {
                     <Input
                         placeholder="Search file key or software..."
                         value={search}
-                        onChange={(e) => setSearch(e.target.value)}
+                        onChange={(e) => { setSearch(e.target.value); setPage(1); }}
                         className="pl-9 bg-muted/50 border-border/50 h-9 text-sm"
                     />
                 </div>
@@ -256,7 +264,7 @@ export default function BucketManagementPage() {
                     {(["all", "files", "assets"] as const).map((f) => (
                         <button
                             key={f}
-                            onClick={() => setBucketFilter(f)}
+                            onClick={() => { setBucketFilter(f); setPage(1); }}
                             className={`px-3 py-1.5 transition-colors capitalize ${bucketFilter === f ? "bg-foreground/[0.08] text-foreground" : "text-muted-foreground hover:text-foreground"}`}
                         >
                             {f}
@@ -267,7 +275,7 @@ export default function BucketManagementPage() {
                     {(["all", "linked", "orphan"] as const).map((f) => (
                         <button
                             key={f}
-                            onClick={() => setStatusFilter(f)}
+                            onClick={() => { setStatusFilter(f); setPage(1); }}
                             className={`px-3 py-1.5 transition-colors capitalize ${statusFilter === f ? "bg-foreground/[0.08] text-foreground" : "text-muted-foreground hover:text-foreground"}`}
                         >
                             {f}
@@ -308,7 +316,7 @@ export default function BucketManagementPage() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {filtered.map((file) => (
+                                {paginated.map((file) => (
                                     <TableRow
                                         key={`${file.bucket}-${file.key}`}
                                         className={file.isOrphan ? "bg-red-500/[0.03]" : ""}
@@ -381,9 +389,61 @@ export default function BucketManagementPage() {
                 </Card>
             )}
 
-            <p className="text-xs text-muted-foreground">
-                {filtered.length} of {files.length} file{files.length !== 1 ? "s" : ""}
-            </p>
+            {/* Pagination */}
+            <div className="flex items-center justify-between">
+                <p className="text-xs text-muted-foreground">
+                    {filtered.length === 0
+                        ? `0 of ${files.length} files`
+                        : `${(clampedPage - 1) * perPage + 1}\u2013${Math.min(clampedPage * perPage, filtered.length)} of ${filtered.length} file${filtered.length !== 1 ? "s" : ""}`
+                    }
+                    {filtered.length !== files.length && ` (${files.length} total)`}
+                </p>
+                {totalPages > 1 && (
+                    <div className="flex items-center gap-1">
+                        <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-8 w-8"
+                            disabled={clampedPage <= 1}
+                            onClick={() => setPage(clampedPage - 1)}
+                        >
+                            <ChevronLeft className="h-4 w-4" />
+                        </Button>
+                        {Array.from({ length: totalPages }, (_, i) => i + 1)
+                            .filter((p) => p === 1 || p === totalPages || Math.abs(p - clampedPage) <= 1)
+                            .reduce<(number | "ellipsis")[]>((acc, p, idx, arr) => {
+                                if (idx > 0 && p - (arr[idx - 1]) > 1) acc.push("ellipsis");
+                                acc.push(p);
+                                return acc;
+                            }, [])
+                            .map((item, idx) =>
+                                item === "ellipsis" ? (
+                                    <span key={`e-${idx}`} className="px-1 text-xs text-muted-foreground">...</span>
+                                ) : (
+                                    <Button
+                                        key={item}
+                                        variant={item === clampedPage ? "default" : "outline"}
+                                        size="icon"
+                                        className="h-8 w-8 text-xs"
+                                        onClick={() => setPage(item)}
+                                    >
+                                        {item}
+                                    </Button>
+                                )
+                            )
+                        }
+                        <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-8 w-8"
+                            disabled={clampedPage >= totalPages}
+                            onClick={() => setPage(clampedPage + 1)}
+                        >
+                            <ChevronRight className="h-4 w-4" />
+                        </Button>
+                    </div>
+                )}
+            </div>
 
             {/* Delete Dialog */}
             <Dialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) closeDelete(); }}>

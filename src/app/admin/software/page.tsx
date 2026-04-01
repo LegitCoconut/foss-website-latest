@@ -64,7 +64,13 @@ export default function AdminSoftwarePage() {
     const router = useRouter();
     const [software, setSoftware] = useState<SoftwareItem[]>([]);
     const [loading, setLoading] = useState(true);
-    const [view, setView] = useState<"table" | "grid">("grid");
+    const [view, setView] = useState<"table" | "grid">(() => {
+        if (typeof window !== "undefined") {
+            return (localStorage.getItem("admin-software-view") as "table" | "grid") || "grid";
+        }
+        return "grid";
+    });
+    function changeView(v: "table" | "grid") { setView(v); localStorage.setItem("admin-software-view", v); }
     const [categoryFilter, setCategoryFilter] = useState("all");
     const [search, setSearch] = useState("");
     const [draftCount, setDraftCount] = useState(0);
@@ -168,13 +174,13 @@ export default function AdminSoftwarePage() {
                 </Select>
                 <div className="flex items-center border border-border/50 rounded-lg overflow-hidden">
                     <button
-                        onClick={() => setView("table")}
+                        onClick={() => changeView("table")}
                         className={`p-2 transition-colors ${view === "table" ? "bg-foreground/[0.08] text-foreground" : "text-muted-foreground hover:text-foreground"}`}
                     >
                         <List className="h-4 w-4" />
                     </button>
                     <button
-                        onClick={() => setView("grid")}
+                        onClick={() => changeView("grid")}
                         className={`p-2 transition-colors ${view === "grid" ? "bg-foreground/[0.08] text-foreground" : "text-muted-foreground hover:text-foreground"}`}
                     >
                         <LayoutGrid className="h-4 w-4" />

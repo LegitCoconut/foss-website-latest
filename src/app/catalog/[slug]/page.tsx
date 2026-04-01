@@ -15,6 +15,8 @@ import Image from "next/image";
 import {
     ChevronLeft,
     ChevronRight,
+    X,
+    ArrowLeft,
     Download,
     ExternalLink,
     Shield,
@@ -145,9 +147,15 @@ function ScreenshotGallery({ name, keys }: { name: string; keys: string[] }) {
                     className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center"
                     onClick={() => setLightboxIndex(null)}
                 >
-                    {/* Counter */}
-                    <div className="absolute top-4 right-4 text-white/60 text-sm font-mono">
-                        {lightboxIndex + 1} / {keys.length}
+                    {/* Close + Counter */}
+                    <div className="absolute top-4 right-4 flex items-center gap-3">
+                        <span className="text-white/60 text-sm font-mono">{lightboxIndex + 1} / {keys.length}</span>
+                        <button
+                            onClick={() => setLightboxIndex(null)}
+                            className="h-9 w-9 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-white hover:bg-white/20 transition"
+                        >
+                            <X className="h-5 w-5" />
+                        </button>
                     </div>
 
                     {/* Previous */}
@@ -419,6 +427,12 @@ export default function SoftwareDetailPage() {
 
     return (
         <div className="container mx-auto px-4 py-8 max-w-4xl">
+            {/* Back */}
+            <Link href="/catalog" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-6">
+                <ArrowLeft className="h-4 w-4" />
+                Back to Catalog
+            </Link>
+
             {/* Header */}
             <div className="flex items-start gap-5 mb-8">
                 {software.iconKey ? (

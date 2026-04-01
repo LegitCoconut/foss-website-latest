@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
+import Image from "next/image";
 import {
     LayoutDashboard,
     Package,
@@ -11,11 +12,11 @@ import {
     BarChart3,
     ChevronLeft,
     LogOut,
-    Shield,
     ShieldPlus,
     Database,
     Sun,
     Moon,
+    ScrollText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTheme } from "next-themes";
@@ -26,6 +27,7 @@ const adminLinks = [
     { href: "/admin/users", label: "Users", icon: Users },
     { href: "/admin/requests", label: "Requests", icon: MessageSquare },
     { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
+    { href: "/admin/logs", label: "Logs", icon: ScrollText },
     { href: "/admin/bucket", label: "Bucket", icon: Database },
     { href: "/admin/management", label: "Management", icon: ShieldPlus },
 ];
@@ -54,9 +56,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 <div className="flex h-14 items-center justify-between px-4 lg:px-6">
                     <div className="flex items-center gap-3">
                         <Link href="/admin" className="flex items-center gap-2.5">
-                            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-foreground text-background">
-                                <Shield className="h-4 w-4" />
-                            </div>
+                            <Image
+                                src="/foss.png"
+                                alt="FOSS Hub Admin"
+                                width={32}
+                                height={32}
+                                className="h-8 w-8"
+                            />
                             <span className="text-sm font-semibold tracking-tight hidden sm:inline">
                                 FOSS Hub Admin
                             </span>
@@ -97,10 +103,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 </div>
             </header>
 
-            <div className="flex flex-1 overflow-hidden">
+            <div className="flex flex-1">
                 {/* Sidebar */}
-                <aside className="hidden lg:flex w-60 flex-col border-r border-border/50 bg-muted/30 p-4 sticky top-14 h-[calc(100vh-3.5rem)]">
-                    <nav className="space-y-1 flex-1">
+                <aside className="hidden lg:flex w-60 flex-col border-r border-border/50 bg-muted/30 p-4 fixed top-14 left-0 bottom-0 z-40">
+                    <nav className="space-y-1 flex-1 overflow-y-auto">
                         {adminLinks.map((link) => {
                             const isActive =
                                 link.href === "/admin"
@@ -154,7 +160,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 </div>
 
                 {/* Content */}
-                <div className="flex-1 overflow-auto pb-20 lg:pb-0">{children}</div>
+                <div className="flex-1 overflow-auto pb-20 lg:pb-0 lg:ml-60">{children}</div>
             </div>
         </div>
     );

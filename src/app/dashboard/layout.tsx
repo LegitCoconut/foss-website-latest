@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
     LayoutDashboard,
@@ -24,9 +25,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             {/* Sidebar */}
             <aside className="hidden lg:flex w-60 flex-col border-r border-border/50 bg-muted/30 p-4">
                 <div className="flex items-center gap-2.5 mb-6 px-2">
-                    <div className="h-8 w-8 rounded-lg bg-foreground/[0.08] border border-border/50 flex items-center justify-center">
-                        <LayoutDashboard className="h-4 w-4 text-foreground/70" />
-                    </div>
+                    <Image
+                        src="/foss.png"
+                        alt="FOSS Hub"
+                        width={32}
+                        height={32}
+                        className="h-8 w-8"
+                    />
                     <span className="font-semibold text-sm tracking-tight">Dashboard</span>
                 </div>
 
