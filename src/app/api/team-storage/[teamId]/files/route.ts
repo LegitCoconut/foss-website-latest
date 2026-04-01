@@ -6,6 +6,43 @@ import TeamFile from "@/models/TeamFile";
 import DownloadLog from "@/models/DownloadLog";
 import { getPresignedUploadUrl, deleteFile } from "@/lib/s3";
 import crypto from "crypto";
+import path from "path";
+
+// Max individual file size: 2 GB
+const MAX_FILE_SIZE = 2 * 1024 * 1024 * 1024;
+const MAX_FILENAME_LENGTH = 255;
+const MAX_DESCRIPTION_LENGTH = 500;
+
+// Dangerous content types that could enable stored XSS if served directly
+const BLOCKED_CONTENT_TYPES = [
+    "text/html",
+    "application/xhtml+xml",
+    "application/javascript",
+    "text/javascript",
+    "image/svg+xml",
+];
+
+// Sanitize filename: strip path components, null bytes, and control characters
+function sanitizeFileName(name: string): string {
+    // Take only the base name (no path traversal)
+    let safe = path.basename(name);
+    // Remove null bytes and control characters
+    safe = safe.replace(/[\x00-\x1f\x7f]/g, "");
+    // Remove leading dots (hidden files)
+    safe = safe.replace(/^\.+/, "");
+    // Truncate
+    if (safe.length > MAX_FILENAME_LENGTH) {
+        const ext = path.extname(safe);
+        safe = safe.slice(0, MAX_FILENAME_LENGTH - ext.length) + ext;
+    }
+    return safe || "unnamed";
+}
+
+// Sanitize file extension: only allow alphanumeric chars
+function sanitizeExt(name: string): string {
+    const ext = path.extname(name).replace(/^\./, "").toLowerCase();
+    return /^[a-z0-9]+$/.test(ext) ? ext : "bin";
+}
 
 export async function POST(
     req: Request,
@@ -33,11 +70,24 @@ export async function POST(
             return NextResponse.json({ error: "Team is suspended — uploads are disabled" }, { status: 403 });
         }
 
-        const { fileName, contentType, fileSize, description } = await req.json();
+        const { fileName: rawFileName, contentType: rawContentType, fileSize, description: rawDescription } = await req.json();
 
-        if (!fileName || !fileSize) {
+        if (!rawFileName || !fileSize) {
             return NextResponse.json({ error: "fileName and fileSize are required" }, { status: 400 });
         }
+
+        // Validate fileSize is a positive number within bounds
+        if (typeof fileSize !== "number" || fileSize <= 0 || fileSize > MAX_FILE_SIZE) {
+            return NextResponse.json({ error: `File size must be between 1 byte and ${MAX_FILE_SIZE / (1024 * 1024 * 1024)} GB` }, { status: 400 });
+        }
+
+        // Sanitize inputs
+        const fileName = sanitizeFileName(String(rawFileName));
+        const contentType = BLOCKED_CONTENT_TYPES.includes(String(rawContentType || "").toLowerCase())
+            ? "application/octet-stream"
+            : String(rawContentType || "application/octet-stream");
+        const description = String(rawDescription || "").slice(0, MAX_DESCRIPTION_LENGTH).trim();
+        const ext = sanitizeExt(fileName);
 
         // Check storage quota
         const [stats] = await TeamFile.aggregate([
@@ -53,14 +103,13 @@ export async function POST(
             );
         }
 
-        // Generate S3 key and presigned URL
-        const ext = fileName.split(".").pop() || "";
+        // Generate S3 key with sanitized extension
         const key = `team-storage/${teamId}/${crypto.randomUUID()}.${ext}`;
 
         const uploadUrl = await getPresignedUploadUrl(
             process.env.S3_FILES_BUCKET!,
             key,
-            contentType || "application/octet-stream",
+            contentType,
             600
         );
 
@@ -71,8 +120,8 @@ export async function POST(
             fileKey: key,
             fileName,
             fileSize,
-            contentType: contentType || "application/octet-stream",
-            description: description || "",
+            contentType,
+            description,
         });
 
         // Log upload

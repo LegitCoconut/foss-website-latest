@@ -31,6 +31,7 @@ const TeamFileSchema = new Schema<ITeamFile>(
         fileName: {
             type: String,
             required: true,
+            maxlength: 255,
         },
         fileSize: {
             type: Number,
@@ -44,6 +45,7 @@ const TeamFileSchema = new Schema<ITeamFile>(
             type: String,
             default: "",
             trim: true,
+            maxlength: 500,
         },
     },
     {

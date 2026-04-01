@@ -51,7 +51,7 @@ export async function getPresignedDownloadUrl(
         Bucket: bucket,
         Key: key,
         ...(fileName && {
-            ResponseContentDisposition: `attachment; filename="${fileName.replace(/"/g, '\\"')}"`,
+            ResponseContentDisposition: `attachment; filename="${fileName.replace(/[\x00-\x1f\x7f"\\]/g, "_")}"`,
         }),
     });
     return getSignedUrl(s3Client, command, { expiresIn });
