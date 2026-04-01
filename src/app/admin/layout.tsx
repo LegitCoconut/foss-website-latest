@@ -13,6 +13,7 @@ import {
     LogOut,
     Shield,
     ShieldPlus,
+    Database,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -22,6 +23,7 @@ const adminLinks = [
     { href: "/admin/users", label: "Users", icon: Users },
     { href: "/admin/requests", label: "Requests", icon: MessageSquare },
     { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
+    { href: "/admin/bucket", label: "Bucket", icon: Database },
     { href: "/admin/management", label: "Management", icon: ShieldPlus },
 ];
 

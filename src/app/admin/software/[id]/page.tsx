@@ -32,6 +32,7 @@ import {
     Loader2, Save, Plus, Trash2, Upload, HardDrive, ImagePlus,
     Package, ArrowLeft, Pencil, Download, Eye, Calendar, Globe,
     Scale, Star, ExternalLink, CheckCircle2, AlertTriangle,
+    ArrowUp, Clock,
 } from "lucide-react";
 import type { SoftwareItem } from "@/types";
 
@@ -41,6 +42,19 @@ function formatBytes(bytes: number) {
     const sizes = ["B", "KB", "MB", "GB"];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
+}
+
+function formatSpeed(bps: number): string {
+    if (bps === 0) return "0 B/s";
+    const units = ["B/s", "KB/s", "MB/s", "GB/s"];
+    const i = Math.floor(Math.log(bps) / Math.log(1024));
+    return (bps / Math.pow(1024, i)).toFixed(i > 1 ? 2 : 1) + " " + units[i];
+}
+
+function formatTime(s: number): string {
+    if (s <= 0 || !isFinite(s)) return "--";
+    if (s < 60) return `${Math.ceil(s)}s`;
+    return `${Math.floor(s / 60)}m ${Math.ceil(s % 60)}s`;
 }
 
 function StatCard({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value: string | number }) {
@@ -75,6 +89,20 @@ export default function SoftwareDetailPage() {
     // Version dialog state
     const [uploading, setUploading] = useState(false);
     const [dialogOpen, setDialogOpen] = useState(false);
+
+    // Upload progress state
+    interface UploadProgress {
+        percent: number;
+        loaded: number;
+        total: number;
+        speed: number;
+        elapsed: number;
+        remaining: number;
+        currentFileName: string;
+        currentIndex: number;
+        totalFiles: number;
+    }
+    const [uploadProgress, setUploadProgress] = useState<UploadProgress | null>(null);
 
     // Multi-file upload state
     interface PendingFile {
@@ -208,39 +236,66 @@ export default function SoftwareDetailPage() {
         try {
             const uploadedFiles = [];
 
-            for (const pf of validFiles) {
+            for (let i = 0; i < validFiles.length; i++) {
+                const pf = validFiles[i];
                 // Get presigned URL
                 const presignRes = await fetch("/api/upload", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ fileName: pf.file.name, contentType: pf.file.type || "application/octet-stream" }),
                 });
-                if (!presignRes.ok) { toast.error(`Failed to prepare upload for ${pf.file.name}`); return; }
+                if (!presignRes.ok) { toast.error(`Failed to prepare upload for ${pf.file.name}`); setUploadProgress(null); return; }
                 const { uploadUrl, key } = await presignRes.json();
 
-                // Upload to S3
-                const uploadRes = await fetch(uploadUrl, {
-                    method: "PUT",
-                    headers: { "Content-Type": pf.file.type || "application/octet-stream" },
-                    body: pf.file,
+                // Upload to S3 with progress
+                setUploadProgress({ percent: 0, loaded: 0, total: pf.file.size, speed: 0, elapsed: 0, remaining: 0, currentFileName: pf.file.name, currentIndex: i + 1, totalFiles: validFiles.length });
+                const uploadOk = await new Promise<boolean>((resolve) => {
+                    const startTime = Date.now();
+                    let lastLoaded = 0;
+                    let lastTime = startTime;
+                    let smoothSpeed = 0;
+                    const xhr = new XMLHttpRequest();
+                    xhr.upload.addEventListener("progress", (e) => {
+                        if (!e.lengthComputable) return;
+                        const now = Date.now();
+                        const elapsedMs = now - startTime;
+                        const intervalMs = now - lastTime;
+                        if (intervalMs > 100) {
+                            const intervalSpeed = ((e.loaded - lastLoaded) / intervalMs) * 1000;
+                            smoothSpeed = smoothSpeed === 0 ? intervalSpeed : smoothSpeed * 0.7 + intervalSpeed * 0.3;
+                            lastLoaded = e.loaded;
+                            lastTime = now;
+                        }
+                        setUploadProgress({
+                            percent: Math.round((e.loaded / e.total) * 100),
+                            loaded: e.loaded,
+                            total: e.total,
+                            speed: smoothSpeed,
+                            elapsed: elapsedMs / 1000,
+                            remaining: smoothSpeed > 0 ? (e.total - e.loaded) / smoothSpeed : 0,
+                            currentFileName: pf.file.name,
+                            currentIndex: i + 1,
+                            totalFiles: validFiles.length,
+                        });
+                    });
+                    xhr.addEventListener("load", () => resolve(xhr.status >= 200 && xhr.status < 300));
+                    xhr.addEventListener("error", () => resolve(false));
+                    xhr.addEventListener("abort", () => resolve(false));
+                    xhr.open("PUT", uploadUrl);
+                    xhr.setRequestHeader("Content-Type", pf.file.type || "application/octet-stream");
+                    xhr.send(pf.file);
                 });
-                if (!uploadRes.ok) { toast.error(`Upload failed for ${pf.file.name}`); return; }
-
-                // Checksum
-                const arrayBuffer = await pf.file.arrayBuffer();
-                const hashBuffer = await crypto.subtle.digest("SHA-256", arrayBuffer);
-                const hashArray = Array.from(new Uint8Array(hashBuffer));
-                const checksum = hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+                if (!uploadOk) { toast.error(`Upload failed for ${pf.file.name}`); setUploadProgress(null); return; }
 
                 uploadedFiles.push({
                     fileKey: key,
                     fileName: pf.file.name,
                     fileSize: pf.file.size,
-                    checksum,
                     platform: pf.platform,
                     architecture: pf.architecture,
                 });
             }
+            setUploadProgress(null);
 
             const res = await fetch(`/api/software/${software._id}/versions`, {
                 method: "POST",
@@ -495,6 +550,43 @@ export default function SoftwareDetailPage() {
                                     <Label>Release Notes</Label>
                                     <Textarea name="releaseNotes" placeholder="What's new..." rows={3} className="bg-muted/50 border-border/50" />
                                 </div>
+                                {/* Upload Progress */}
+                                {uploadProgress && (
+                                    <div className="rounded-lg border border-border/50 bg-muted/50 overflow-hidden">
+                                        <div className="w-full bg-muted h-2">
+                                            <div className="bg-foreground h-2 transition-all duration-300 ease-out" style={{ width: `${uploadProgress.percent}%` }} />
+                                        </div>
+                                        <div className="p-3 space-y-2">
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-center gap-2 min-w-0">
+                                                    <Loader2 className="h-3.5 w-3.5 text-muted-foreground animate-spin flex-shrink-0" />
+                                                    <span className="text-xs font-medium truncate">
+                                                        {uploadProgress.currentFileName}
+                                                        {uploadProgress.totalFiles > 1 && (
+                                                            <span className="text-muted-foreground"> ({uploadProgress.currentIndex}/{uploadProgress.totalFiles})</span>
+                                                        )}
+                                                    </span>
+                                                </div>
+                                                <span className="text-xs font-mono font-medium tabular-nums ml-2">{uploadProgress.percent}%</span>
+                                            </div>
+                                            <div className="grid grid-cols-3 gap-2">
+                                                <div className="flex items-center gap-1.5 rounded bg-background/50 px-2 py-1 border border-border/30">
+                                                    <ArrowUp className="h-3 w-3 text-muted-foreground" />
+                                                    <span className="text-[10px] font-mono tabular-nums">{formatSpeed(uploadProgress.speed)}</span>
+                                                </div>
+                                                <div className="flex items-center gap-1.5 rounded bg-background/50 px-2 py-1 border border-border/30">
+                                                    <HardDrive className="h-3 w-3 text-muted-foreground" />
+                                                    <span className="text-[10px] font-mono tabular-nums">{formatBytes(uploadProgress.loaded)}/{formatBytes(uploadProgress.total)}</span>
+                                                </div>
+                                                <div className="flex items-center gap-1.5 rounded bg-background/50 px-2 py-1 border border-border/30">
+                                                    <Clock className="h-3 w-3 text-muted-foreground" />
+                                                    <span className="text-[10px] font-mono tabular-nums">{formatTime(uploadProgress.remaining)}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
                                 <Button type="submit" disabled={uploading} className="w-full">
                                     {uploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
                                     {uploading ? "Uploading..." : "Upload Version"}

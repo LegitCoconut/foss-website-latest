@@ -71,4 +71,18 @@ export function getAssetUrl(key: string) {
     return `${process.env.S3_ENDPOINT}/${process.env.S3_ASSETS_BUCKET}/${key}`;
 }
 
+export async function getFileChecksum(bucket: string, key: string): Promise<string> {
+    const { createHash } = await import("crypto");
+    const command = new GetObjectCommand({ Bucket: bucket, Key: key });
+    const response = await s3Client.send(command);
+    const stream = response.Body as NodeJS.ReadableStream;
+
+    return new Promise((resolve, reject) => {
+        const hash = createHash("sha256");
+        stream.on("data", (chunk: Buffer) => hash.update(chunk));
+        stream.on("end", () => resolve(hash.digest("hex")));
+        stream.on("error", reject);
+    });
+}
+
 export { s3Client };

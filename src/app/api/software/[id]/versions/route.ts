@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import dbConnect from "@/lib/db";
 import Software from "@/models/Software";
-import { deleteFile } from "@/lib/s3";
+import { deleteFile, getFileChecksum } from "@/lib/s3";
 
 export async function POST(
     req: Request,
@@ -23,7 +23,30 @@ export async function POST(
             return NextResponse.json({ error: "Software not found" }, { status: 404 });
         }
 
+        // Compute checksums server-side for files missing them
+        const bucket = process.env.S3_FILES_BUCKET!;
+        if (body.files && Array.isArray(body.files)) {
+            for (const file of body.files) {
+                if (!file.checksum && file.fileKey) {
+                    try {
+                        file.checksum = await getFileChecksum(bucket, file.fileKey);
+                    } catch (e) {
+                        console.error("Checksum computation failed for", file.fileKey, e);
+                    }
+                }
+            }
+        }
+        // Legacy single-file
+        if (!body.checksum && body.fileKey) {
+            try {
+                body.checksum = await getFileChecksum(bucket, body.fileKey);
+            } catch (e) {
+                console.error("Checksum computation failed for", body.fileKey, e);
+            }
+        }
+
         software.versions.push(body);
+        software.markModified("versions");
         await software.save();
 
         const newVersion = software.versions[software.versions.length - 1];
