@@ -118,6 +118,16 @@ export default function SoftwareDetailPage() {
     const [deleteSoftwareConfirm, setDeleteSoftwareConfirm] = useState("");
     const [deletingSoftware, setDeletingSoftware] = useState(false);
 
+    // Edit version dialog state
+    const [editVersionId, setEditVersionId] = useState<string | null>(null);
+    const [editVersionNumber, setEditVersionNumber] = useState("");
+    const [editReleaseNotes, setEditReleaseNotes] = useState("");
+    const [editExistingFiles, setEditExistingFiles] = useState<{ _id: string; fileName: string; platform: string; architecture: string; fileSize: number }[]>([]);
+    const [editNewFiles, setEditNewFiles] = useState<PendingFile[]>([]);
+    const [editRemoveFileIds, setEditRemoveFileIds] = useState<string[]>([]);
+    const [savingVersion, setSavingVersion] = useState(false);
+    const [editUploadProgress, setEditUploadProgress] = useState<UploadProgress | null>(null);
+
     // Delete version dialog state
     const [deleteVersionId, setDeleteVersionId] = useState<string | null>(null);
     const [deleting, setDeleting] = useState(false);
@@ -389,6 +399,123 @@ export default function SoftwareDetailPage() {
         } catch { toast.error("Something went wrong"); }
     }
 
+    function openEditVersion(versionId: string) {
+        if (!software) return;
+        const v = software.versions.find((ver) => ver._id === versionId);
+        if (!v) return;
+        setEditVersionId(versionId);
+        setEditVersionNumber(v.versionNumber);
+        setEditReleaseNotes(v.releaseNotes || "");
+        setEditExistingFiles(
+            (v.files && v.files.length > 0)
+                ? v.files.map((f) => ({ _id: f._id, fileName: f.fileName, platform: f.platform, architecture: f.architecture, fileSize: f.fileSize }))
+                : v.fileKey
+                    ? [{ _id: "legacy", fileName: v.fileName, platform: v.platform, architecture: v.architecture, fileSize: v.fileSize }]
+                    : []
+        );
+        setEditNewFiles([]);
+        setEditRemoveFileIds([]);
+    }
+
+    function closeEditVersion() {
+        setEditVersionId(null);
+        setEditNewFiles([]);
+        setEditRemoveFileIds([]);
+        setEditUploadProgress(null);
+    }
+
+    async function handleSaveVersion() {
+        if (!software || !editVersionId) return;
+        setSavingVersion(true);
+
+        try {
+            // Upload new files first
+            const uploadedFiles = [];
+            const validNew = editNewFiles.filter((pf) => pf.file && pf.file.size > 0);
+
+            for (let i = 0; i < validNew.length; i++) {
+                const pf = validNew[i];
+                const presignRes = await fetch("/api/upload", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ fileName: pf.file.name, contentType: pf.file.type || "application/octet-stream" }),
+                });
+                if (!presignRes.ok) { toast.error(`Failed to prepare upload for ${pf.file.name}`); setSavingVersion(false); return; }
+                const { uploadUrl, key } = await presignRes.json();
+
+                setEditUploadProgress({ percent: 0, loaded: 0, total: pf.file.size, speed: 0, elapsed: 0, remaining: 0, currentFileName: pf.file.name, currentIndex: i + 1, totalFiles: validNew.length });
+                const uploadOk = await new Promise<boolean>((resolve) => {
+                    const startTime = Date.now();
+                    let lastLoaded = 0;
+                    let lastTime = startTime;
+                    let smoothSpeed = 0;
+                    const xhr = new XMLHttpRequest();
+                    xhr.upload.addEventListener("progress", (e) => {
+                        if (!e.lengthComputable) return;
+                        const now = Date.now();
+                        const intervalMs = now - lastTime;
+                        if (intervalMs > 100) {
+                            const intervalSpeed = ((e.loaded - lastLoaded) / intervalMs) * 1000;
+                            smoothSpeed = smoothSpeed === 0 ? intervalSpeed : smoothSpeed * 0.7 + intervalSpeed * 0.3;
+                            lastLoaded = e.loaded;
+                            lastTime = now;
+                        }
+                        setEditUploadProgress({
+                            percent: Math.round((e.loaded / e.total) * 100),
+                            loaded: e.loaded, total: e.total, speed: smoothSpeed,
+                            elapsed: (now - startTime) / 1000,
+                            remaining: smoothSpeed > 0 ? (e.total - e.loaded) / smoothSpeed : 0,
+                            currentFileName: pf.file.name, currentIndex: i + 1, totalFiles: validNew.length,
+                        });
+                    });
+                    xhr.addEventListener("load", () => resolve(xhr.status >= 200 && xhr.status < 300));
+                    xhr.addEventListener("error", () => resolve(false));
+                    xhr.addEventListener("abort", () => resolve(false));
+                    xhr.open("PUT", uploadUrl);
+                    xhr.setRequestHeader("Content-Type", pf.file.type || "application/octet-stream");
+                    xhr.send(pf.file);
+                });
+                setEditUploadProgress(null);
+                if (!uploadOk) { toast.error(`Upload failed for ${pf.file.name}`); setSavingVersion(false); return; }
+
+                uploadedFiles.push({
+                    fileKey: key, fileName: pf.file.name, fileSize: pf.file.size,
+                    platform: pf.platform, architecture: pf.architecture,
+                });
+            }
+
+            // PATCH the version
+            const res = await fetch(`/api/software/${software._id}/versions`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    versionId: editVersionId,
+                    versionNumber: editVersionNumber,
+                    releaseNotes: editReleaseNotes,
+                    removeFileIds: editRemoveFileIds,
+                    files: uploadedFiles.length > 0 ? uploadedFiles : undefined,
+                }),
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                setSoftware({
+                    ...software,
+                    versions: software.versions.map((v) => v._id === editVersionId ? data.version : v),
+                });
+                toast.success("Version updated");
+                closeEditVersion();
+            } else {
+                const data = await res.json();
+                toast.error(data.error || "Update failed");
+            }
+        } catch {
+            toast.error("Something went wrong");
+        } finally {
+            setSavingVersion(false);
+        }
+    }
+
     // --- Render ---
 
     if (loading) {
@@ -505,122 +632,12 @@ export default function SoftwareDetailPage() {
             <Card className="border-border/50">
                 <CardHeader className="flex flex-row items-center justify-between pb-3">
                     <CardTitle className="text-base">Versions ({software.versions.length})</CardTitle>
-                    <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-                        <DialogTrigger asChild>
-                            <Button size="sm">
-                                <Plus className="mr-2 h-3.5 w-3.5" />
-                                Add Version
-                            </Button>
-                        </DialogTrigger>
-                        <DialogContent className="border-border/50 bg-background max-w-2xl w-full">
-                            <DialogHeader>
-                                <DialogTitle className="text-lg">Upload New Version</DialogTitle>
-                                <DialogDescription>Add a new version with its release files.</DialogDescription>
-                            </DialogHeader>
-                            <form onSubmit={handleAddVersion} className="space-y-5">
-                                <div className="space-y-2">
-                                    <Label className="text-sm font-medium">Version Number *</Label>
-                                    <Input name="versionNumber" placeholder="e.g., 24.04 LTS" required className="bg-muted/50 border-border/50 h-10 text-base" />
-                                </div>
-
-                                {/* Multi-file entries */}
-                                <div className="space-y-3">
-                                    <div className="flex items-center justify-between">
-                                        <Label className="text-sm font-medium">Files *</Label>
-                                        <Button type="button" variant="ghost" size="sm" className="h-8 text-sm" onClick={addFileEntry}>
-                                            <Plus className="h-3.5 w-3.5 mr-1" /> Add File
-                                        </Button>
-                                    </div>
-                                    {pendingFiles.length === 0 && (
-                                        <button type="button" onClick={addFileEntry} className="w-full p-5 rounded-lg border-2 border-dashed border-border/50 text-base text-muted-foreground hover:border-foreground/30 transition-colors">
-                                            Click to add a file
-                                        </button>
-                                    )}
-                                    {pendingFiles.map((pf, i) => (
-                                        <div key={i} className="rounded-lg border border-border/50 bg-muted/30 p-4 space-y-3">
-                                            <div className="flex items-center gap-2">
-                                                <Input
-                                                    type="file"
-                                                    className="bg-muted/50 border-border/50 flex-1 text-sm"
-                                                    onChange={(e) => {
-                                                        const file = e.target.files?.[0];
-                                                        if (file) updateFileEntry(i, { file });
-                                                    }}
-                                                />
-                                                <Button type="button" variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground hover:text-destructive flex-shrink-0" onClick={() => removeFileEntry(i)}>
-                                                    <Trash2 className="h-4 w-4" />
-                                                </Button>
-                                            </div>
-                                            <div className="grid grid-cols-2 gap-3">
-                                                <Select value={pf.platform} onValueChange={(v) => updateFileEntry(i, { platform: v })}>
-                                                    <SelectTrigger className="bg-muted/50 border-border/50 h-9 text-sm"><SelectValue /></SelectTrigger>
-                                                    <SelectContent>
-                                                        <SelectItem value="windows">Windows</SelectItem>
-                                                        <SelectItem value="linux">Linux</SelectItem>
-                                                        <SelectItem value="macos">macOS (Intel)</SelectItem>
-                                                        <SelectItem value="macos-arm">macOS (Apple Silicon)</SelectItem>
-                                                        <SelectItem value="cross-platform">Cross-platform</SelectItem>
-                                                        <SelectItem value="android">Android (APK)</SelectItem>
-                                                    </SelectContent>
-                                                </Select>
-                                                <Select value={pf.architecture} onValueChange={(v) => updateFileEntry(i, { architecture: v })}>
-                                                    <SelectTrigger className="bg-muted/50 border-border/50 h-9 text-sm"><SelectValue /></SelectTrigger>
-                                                    <SelectContent>
-                                                        <SelectItem value="x86_64">x86_64</SelectItem>
-                                                        <SelectItem value="arm64">ARM64</SelectItem>
-                                                        <SelectItem value="universal">Universal</SelectItem>
-                                                        <SelectItem value="other">Other</SelectItem>
-                                                    </SelectContent>
-                                                </Select>
-                                            </div>
-                                            {pf.file && (
-                                                <p className="text-xs text-muted-foreground truncate">
-                                                    {pf.file.name} ({(pf.file.size / (1024 * 1024)).toFixed(2)} MB)
-                                                </p>
-                                            )}
-                                        </div>
-                                    ))}
-                                </div>
-                                <div className="space-y-2">
-                                    <Label className="text-sm font-medium">Release Notes</Label>
-                                    <Textarea name="releaseNotes" placeholder="What's new..." rows={3} className="bg-muted/50 border-border/50 text-sm" />
-                                </div>
-                                {/* Upload Progress */}
-                                {uploadProgress && (
-                                    <div className="rounded-lg border border-border/50 bg-muted/50 overflow-hidden">
-                                        <div className="w-full bg-muted h-2.5">
-                                            <div className="bg-foreground h-2.5 transition-all duration-300 ease-out" style={{ width: `${uploadProgress.percent}%` }} />
-                                        </div>
-                                        <div className="p-4 space-y-3">
-                                            <div className="flex items-center justify-between">
-                                                <div className="flex items-center gap-2.5 min-w-0">
-                                                    <Loader2 className="h-5 w-5 text-muted-foreground animate-spin flex-shrink-0" />
-                                                    <div className="min-w-0">
-                                                        <p className="text-sm font-medium truncate">
-                                                            {uploadProgress.currentFileName}
-                                                        </p>
-                                                        {uploadProgress.totalFiles > 1 && (
-                                                            <p className="text-xs text-muted-foreground">File {uploadProgress.currentIndex} of {uploadProgress.totalFiles}</p>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                                <span className="text-lg font-mono font-bold tabular-nums ml-3">{uploadProgress.percent}%</span>
-                                            </div>
-                                            <div className="flex items-center justify-between text-sm text-muted-foreground">
-                                                <span>{formatBytes(uploadProgress.loaded)} / {formatBytes(uploadProgress.total)}</span>
-                                                <span>{formatSpeed(uploadProgress.speed)} &middot; {formatTime(uploadProgress.remaining)} left</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
-
-                                <Button type="submit" disabled={uploading} className="w-full">
-                                    {uploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
-                                    {uploading ? "Uploading..." : "Upload Version"}
-                                </Button>
-                            </form>
-                        </DialogContent>
-                    </Dialog>
+                    <Button size="sm" asChild>
+                        <Link href={`/admin/software/${software._id}/version/new`}>
+                            <Plus className="mr-2 h-3.5 w-3.5" />
+                            Add Version
+                        </Link>
+                    </Button>
                 </CardHeader>
                 <CardContent>
                     {software.versions.length === 0 ? (
@@ -686,6 +703,15 @@ export default function SoftwareDetailPage() {
                                         <TableCell>
                                             {!v.isDeleted && (
                                                 <div className="flex items-center gap-1">
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                                                        onClick={() => router.push(`/admin/software/${software._id}/version/${v._id}`)}
+                                                        title="Edit version"
+                                                    >
+                                                        <Pencil className="h-3.5 w-3.5" />
+                                                    </Button>
                                                     <Button
                                                         variant="ghost"
                                                         size="icon"

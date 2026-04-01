@@ -14,8 +14,11 @@ import {
     Shield,
     ShieldPlus,
     Database,
+    Sun,
+    Moon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useTheme } from "next-themes";
 
 const adminLinks = [
     { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
@@ -30,6 +33,7 @@ const adminLinks = [
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
     const { data: session } = useSession();
+    const { theme, setTheme } = useTheme();
 
     // Don't show sidebar/header on admin login page
     if (pathname === "/admin/login") {
@@ -93,9 +97,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 </div>
             </header>
 
-            <div className="flex flex-1">
+            <div className="flex flex-1 overflow-hidden">
                 {/* Sidebar */}
-                <aside className="hidden lg:flex w-60 flex-col border-r border-border/50 bg-muted/30 p-4">
+                <aside className="hidden lg:flex w-60 flex-col border-r border-border/50 bg-muted/30 p-4 sticky top-14 h-[calc(100vh-3.5rem)]">
                     <nav className="space-y-1 flex-1">
                         {adminLinks.map((link) => {
                             const isActive =
@@ -117,6 +121,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                             );
                         })}
                     </nav>
+                    <button
+                        onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+                        className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-foreground/[0.04] transition-colors"
+                    >
+                        {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+                        {theme === "dark" ? "Light Mode" : "Dark Mode"}
+                    </button>
                 </aside>
 
                 {/* Mobile nav */}
