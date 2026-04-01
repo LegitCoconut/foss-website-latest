@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TrendingUp, Eye, BarChart3 } from "lucide-react";
+import { useTheme } from "next-themes";
 import type { AnalyticsData } from "@/types";
 import {
     AreaChart,
@@ -18,6 +19,7 @@ import {
 } from "recharts";
 
 export default function AdminAnalyticsPage() {
+    const { resolvedTheme } = useTheme();
     const [data, setData] = useState<AnalyticsData | null>(null);
     const [loading, setLoading] = useState(true);
 
@@ -84,19 +86,19 @@ export default function AdminAnalyticsPage() {
                 </CardHeader>
                 <CardContent>
                     {data.downloadsOverTime.length > 0 ? (
-                        <ResponsiveContainer width="100%" height={350}>
+                        <ResponsiveContainer key={`dl-${resolvedTheme}`} width="100%" height={350}>
                             <AreaChart data={data.downloadsOverTime}>
                                 <defs>
                                     <linearGradient id="dlGrad" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="hsl(var(--foreground))" stopOpacity={0.15} />
-                                        <stop offset="95%" stopColor="hsl(var(--foreground))" stopOpacity={0} />
+                                        <stop offset="5%" stopColor="#4ade80" stopOpacity={0.15} />
+                                        <stop offset="95%" stopColor="#4ade80" stopOpacity={0} />
                                     </linearGradient>
                                 </defs>
                                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                                 <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={12} tickFormatter={(v) => v.slice(5)} />
                                 <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
                                 <Tooltip contentStyle={tooltipStyle} />
-                                <Area type="monotone" dataKey="count" stroke="hsl(var(--foreground))" fillOpacity={1} fill="url(#dlGrad)" strokeWidth={1.5} />
+                                <Area type="monotone" dataKey="count" stroke="#4ade80" fillOpacity={1} fill="url(#dlGrad)" strokeWidth={1.5} />
                             </AreaChart>
                         </ResponsiveContainer>
                     ) : (
@@ -115,13 +117,13 @@ export default function AdminAnalyticsPage() {
                 </CardHeader>
                 <CardContent>
                     {data.pageVisitsOverTime.length > 0 ? (
-                        <ResponsiveContainer width="100%" height={300}>
+                        <ResponsiveContainer key={`pv-${resolvedTheme}`} width="100%" height={300}>
                             <BarChart data={data.pageVisitsOverTime}>
                                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                                 <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={12} tickFormatter={(v) => v.slice(5)} />
                                 <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
                                 <Tooltip contentStyle={tooltipStyle} />
-                                <Bar dataKey="count" fill="hsl(var(--muted-foreground))" radius={[4, 4, 0, 0]} />
+                                <Bar dataKey="count" fill="#4ade80" radius={[4, 4, 0, 0]} />
                             </BarChart>
                         </ResponsiveContainer>
                     ) : (
@@ -153,7 +155,7 @@ export default function AdminAnalyticsPage() {
                                         </div>
                                         <div className="h-1.5 bg-muted rounded-full overflow-hidden">
                                             <div
-                                                className="h-full bg-foreground/30 rounded-full"
+                                                className="h-full bg-green-400/50 rounded-full"
                                                 style={{
                                                     width: `${(sw.downloads / (data.topSoftware[0]?.downloads || 1)) * 100}%`,
                                                 }}

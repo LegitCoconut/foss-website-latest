@@ -7,6 +7,7 @@ import {
     Users, Download, Package, MessageSquare, TrendingUp, Eye,
     Cpu, MemoryStick, HardDrive, Network, Server, Clock, Database,
 } from "lucide-react";
+import { useTheme } from "next-themes";
 import type { AnalyticsData } from "@/types";
 import {
     AreaChart,
@@ -45,7 +46,7 @@ function formatUptime(seconds: number): string {
 }
 
 function UsageBar({ percent, color }: { percent: number; color?: string }) {
-    const barColor = percent > 90 ? "bg-red-500" : percent > 70 ? "bg-yellow-500" : (color || "bg-foreground/40");
+    const barColor = percent > 90 ? "bg-red-500" : percent > 70 ? "bg-yellow-500" : (color || "bg-green-400/60");
     return (
         <div className="w-full h-2 rounded-full bg-muted overflow-hidden">
             <div className={`h-full rounded-full transition-all duration-500 ${barColor}`} style={{ width: `${Math.min(percent, 100)}%` }} />
@@ -54,6 +55,7 @@ function UsageBar({ percent, color }: { percent: number; color?: string }) {
 }
 
 export default function AdminDashboardPage() {
+    const { resolvedTheme } = useTheme();
     const [data, setData] = useState<AnalyticsData | null>(null);
     const [loading, setLoading] = useState(true);
     const [sysStats, setSysStats] = useState<SystemStats | null>(null);
@@ -229,12 +231,12 @@ export default function AdminDashboardPage() {
                     </CardHeader>
                     <CardContent>
                         {data.downloadsOverTime.length > 0 ? (
-                            <ResponsiveContainer width="100%" height={180}>
+                            <ResponsiveContainer key={resolvedTheme} width="100%" height={180}>
                                 <AreaChart data={data.downloadsOverTime}>
                                     <defs>
                                         <linearGradient id="colorDownloads" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="5%" stopColor="hsl(var(--foreground))" stopOpacity={0.15} />
-                                            <stop offset="95%" stopColor="hsl(var(--foreground))" stopOpacity={0} />
+                                            <stop offset="5%" stopColor="#4ade80" stopOpacity={0.15} />
+                                            <stop offset="95%" stopColor="#4ade80" stopOpacity={0} />
                                         </linearGradient>
                                     </defs>
                                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
@@ -257,7 +259,7 @@ export default function AdminDashboardPage() {
                                     <Area
                                         type="monotone"
                                         dataKey="count"
-                                        stroke="hsl(var(--foreground))"
+                                        stroke="#4ade80"
                                         fillOpacity={1}
                                         fill="url(#colorDownloads)"
                                         strokeWidth={1.5}
@@ -304,7 +306,7 @@ export default function AdminDashboardPage() {
                                             </div>
                                             <div className="ml-8 h-1.5 rounded-full bg-muted overflow-hidden">
                                                 <div
-                                                    className="h-full rounded-full bg-foreground/20"
+                                                    className="h-full rounded-full bg-green-400/40"
                                                     style={{ width: `${barWidth}%` }}
                                                 />
                                             </div>
