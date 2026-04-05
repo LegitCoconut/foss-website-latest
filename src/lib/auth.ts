@@ -26,7 +26,7 @@ export const {
 
                 await dbConnect();
 
-                const user = await User.findOne({ email: credentials.email }).select("+password totpEnabled");
+                const user = await User.findOne({ email: credentials.email }).select("+password");
                 if (!user || !user.password) {
                     return null;
                 }

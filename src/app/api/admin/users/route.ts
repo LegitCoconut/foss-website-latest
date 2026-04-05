@@ -14,10 +14,9 @@ export async function GET(req: Request) {
 
         const { searchParams } = new URL(req.url);
         const search = searchParams.get("search") || "";
-        const role = searchParams.get("role") || "";
         const status = searchParams.get("status") || "";
 
-        const query: Record<string, unknown> = {};
+        const query: Record<string, unknown> = { role: "user" };
 
         if (search) {
             query.$or = [
@@ -25,10 +24,6 @@ export async function GET(req: Request) {
                 { email: { $regex: search, $options: "i" } },
                 { registerNumber: { $regex: search, $options: "i" } },
             ];
-        }
-
-        if (role) {
-            query.role = role;
         }
 
         if (status) {

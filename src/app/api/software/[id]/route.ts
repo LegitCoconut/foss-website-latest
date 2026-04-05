@@ -5,6 +5,9 @@ import Software from "@/models/Software";
 import User from "@/models/User";
 import { deleteFile } from "@/lib/s3";
 import bcrypt from "bcryptjs";
+import { rateLimit, getClientIp, rateLimitResponse } from "@/lib/rate-limit";
+
+const getLimiter = rateLimit({ interval: 60_000, limit: 60 });
 
 export async function GET(
     req: Request,
@@ -12,6 +15,10 @@ export async function GET(
 ) {
     try {
         const { id } = await params;
+        const ip = getClientIp(req);
+        const { success, reset } = getLimiter.check(ip);
+        if (!success) return rateLimitResponse(reset);
+
         await dbConnect();
 
         // Support lookup by either _id or slug

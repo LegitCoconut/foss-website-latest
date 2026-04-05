@@ -12,13 +12,7 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
     Table,
     TableBody,
@@ -40,7 +34,6 @@ import {
     Loader2,
     Mail,
     Hash,
-    Shield,
 } from "lucide-react";
 
 interface UserEntry {
@@ -58,16 +51,11 @@ const statusColors: Record<string, string> = {
     suspended: "bg-red-500/10 text-red-400 border-red-500/20",
 };
 
-const roleColors: Record<string, string> = {
-    admin: "bg-purple-500/10 text-purple-400 border-purple-500/20",
-    user: "bg-blue-500/10 text-blue-400 border-blue-500/20",
-};
 
 export default function AdminUsersPage() {
     const [users, setUsers] = useState<UserEntry[]>([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState("");
-    const [roleFilter, setRoleFilter] = useState("all");
     const [statusFilter, setStatusFilter] = useState("all");
 
     // Action dialog
@@ -138,9 +126,8 @@ export default function AdminUsersPage() {
             u.name.toLowerCase().includes(search.toLowerCase()) ||
             u.email.toLowerCase().includes(search.toLowerCase()) ||
             (u.registerNumber || "").toLowerCase().includes(search.toLowerCase());
-        const matchesRole = roleFilter === "all" || u.role === roleFilter;
         const matchesStatus = statusFilter === "all" || (u.status || "active") === statusFilter;
-        return matchesSearch && matchesRole && matchesStatus;
+        return matchesSearch && matchesStatus;
     });
 
     const actionMessages = {
@@ -167,16 +154,6 @@ export default function AdminUsersPage() {
                         className="pl-9 bg-muted/50 border-border/50 h-9 text-sm"
                     />
                 </div>
-                <Select value={roleFilter} onValueChange={setRoleFilter}>
-                    <SelectTrigger className="w-[130px] bg-muted/50 border-border/50 h-9 text-sm">
-                        <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="all">All Roles</SelectItem>
-                        <SelectItem value="user">Users</SelectItem>
-                        <SelectItem value="admin">Admins</SelectItem>
-                    </SelectContent>
-                </Select>
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
                     <SelectTrigger className="w-[140px] bg-muted/50 border-border/50 h-9 text-sm">
                         <SelectValue />
@@ -213,7 +190,6 @@ export default function AdminUsersPage() {
                                 <TableRow>
                                     <TableHead>User</TableHead>
                                     <TableHead>Register No.</TableHead>
-                                    <TableHead>Role</TableHead>
                                     <TableHead>Status</TableHead>
                                     <TableHead>Joined</TableHead>
                                     <TableHead className="w-[120px]"></TableHead>
@@ -244,12 +220,6 @@ export default function AdminUsersPage() {
                                                 ) : (
                                                     <span className="text-xs text-muted-foreground">—</span>
                                                 )}
-                                            </TableCell>
-                                            <TableCell>
-                                                <Badge className={roleColors[user.role] || roleColors.user}>
-                                                    {user.role === "admin" && <Shield className="h-3 w-3 mr-1" />}
-                                                    {user.role}
-                                                </Badge>
                                             </TableCell>
                                             <TableCell>
                                                 <Badge className={statusColors[userStatus] || statusColors.active}>

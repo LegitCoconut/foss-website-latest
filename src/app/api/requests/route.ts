@@ -3,6 +3,10 @@ import { auth } from "@/lib/auth";
 import dbConnect from "@/lib/db";
 import SoftwareRequest from "@/models/SoftwareRequest";
 import User from "@/models/User";
+import { rateLimit, rateLimitResponse } from "@/lib/rate-limit";
+
+const readLimiter = rateLimit({ interval: 60_000, limit: 30 });
+const writeLimiter = rateLimit({ interval: 3600_000, limit: 20 });
 
 export async function GET(req: Request) {
     try {
@@ -10,6 +14,8 @@ export async function GET(req: Request) {
         if (!session?.user) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
+        const rl = readLimiter.check(session.user.id);
+        if (!rl.success) return rateLimitResponse(rl.reset);
 
         await dbConnect();
 
@@ -64,6 +70,8 @@ export async function POST(req: Request) {
         if (!session?.user) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
+        const rl2 = writeLimiter.check(session.user.id);
+        if (!rl2.success) return rateLimitResponse(rl2.reset);
 
         await dbConnect();
         const body = await req.json();

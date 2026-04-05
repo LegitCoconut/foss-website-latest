@@ -3,12 +3,14 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
+import { useSession } from "next-auth/react";
 import {
     LayoutDashboard,
     MessageSquare,
     Download,
     ChevronLeft,
     FolderArchive,
+    User,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -17,10 +19,12 @@ const dashboardLinks = [
     { href: "/dashboard/downloads", label: "My Downloads", icon: Download },
     { href: "/dashboard/requests", label: "My Requests", icon: MessageSquare },
     { href: "/dashboard/team-storage", label: "Team Storage", icon: FolderArchive },
+    { href: "/dashboard/profile", label: "Profile", icon: User },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
+    const { data: session } = useSession();
 
     return (
         <div className="flex min-h-[calc(100vh-4rem)]">
@@ -58,6 +62,25 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                         );
                     })}
                 </nav>
+
+                {/* User section */}
+                {session?.user && (
+                    <Link
+                        href="/dashboard/profile"
+                        className="flex items-center gap-3 border-t border-border/50 pt-3 mt-3 px-3 py-2 rounded-lg hover:bg-foreground/[0.04] transition-colors"
+                    >
+                        <div className="h-8 w-8 rounded-full bg-muted border border-border/50 flex items-center justify-center flex-shrink-0 relative">
+                            <span className="text-xs font-bold">{session.user.name?.charAt(0).toUpperCase()}</span>
+                            {(session.user as any).totpEnabled && (
+                                <div className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-background bg-green-500" />
+                            )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate">{session.user.name}</p>
+                            <p className="text-[11px] text-muted-foreground truncate">{session.user.email}</p>
+                        </div>
+                    </Link>
+                )}
 
                 <Button asChild variant="ghost" size="sm" className="justify-start gap-2 text-muted-foreground">
                     <Link href="/">

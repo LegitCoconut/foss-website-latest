@@ -20,7 +20,7 @@ export async function GET() {
 
         await dbConnect();
         const admins = await User.find({ role: "admin" })
-            .select("name email createdAt")
+            .select("name email status createdAt")
             .sort({ createdAt: -1 })
             .lean();
 
@@ -115,5 +115,66 @@ export async function POST(req: Request) {
             { error: "Internal server error" },
             { status: 500 }
         );
+    }
+}
+
+export async function DELETE(req: Request) {
+    try {
+        const session = await auth();
+        if (!session?.user || (session.user as { role?: string }).role !== "admin") {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+        }
+
+        await dbConnect();
+        const { userId, action, password } = await req.json();
+
+        if (!userId || !action) {
+            return NextResponse.json({ error: "userId and action are required" }, { status: 400 });
+        }
+
+        if (userId === session.user.id) {
+            return NextResponse.json({ error: "Cannot modify your own account" }, { status: 400 });
+        }
+
+        const targetAdmin = await User.findById(userId);
+        if (!targetAdmin || targetAdmin.role !== "admin") {
+            return NextResponse.json({ error: "Admin not found" }, { status: 404 });
+        }
+
+        if (action === "suspend") {
+            targetAdmin.status = "suspended";
+            await targetAdmin.save();
+            return NextResponse.json({ message: "Admin suspended" });
+        }
+
+        if (action === "activate") {
+            targetAdmin.status = "active";
+            await targetAdmin.save();
+            return NextResponse.json({ message: "Admin activated" });
+        }
+
+        if (action === "delete") {
+            if (!password) {
+                return NextResponse.json({ error: "Password is required to delete an admin" }, { status: 400 });
+            }
+
+            const currentAdmin = await User.findById(session.user.id).select("+password");
+            if (!currentAdmin) {
+                return NextResponse.json({ error: "Current user not found" }, { status: 404 });
+            }
+
+            const valid = await bcrypt.compare(password, currentAdmin.password);
+            if (!valid) {
+                return NextResponse.json({ error: "Invalid password" }, { status: 401 });
+            }
+
+            await User.findByIdAndDelete(userId);
+            return NextResponse.json({ message: "Admin deleted" });
+        }
+
+        return NextResponse.json({ error: "Invalid action" }, { status: 400 });
+    } catch (error) {
+        console.error("Admin action error:", error);
+        return NextResponse.json({ error: "Internal server error" }, { status: 500 });
     }
 }

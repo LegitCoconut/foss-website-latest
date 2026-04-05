@@ -1,9 +1,16 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/db";
 import PageVisit from "@/models/PageVisit";
+import { rateLimit, getClientIp, rateLimitResponse } from "@/lib/rate-limit";
+
+const limiter = rateLimit({ interval: 60_000, limit: 30 }); // 30 per min per IP
 
 export async function POST(req: Request) {
     try {
+        const ip = getClientIp(req);
+        const { success, reset } = limiter.check(ip);
+        if (!success) return rateLimitResponse(reset);
+
         const body = await req.json();
         const userAgent = req.headers.get("user-agent") || "";
 

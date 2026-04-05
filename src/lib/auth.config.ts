@@ -42,8 +42,8 @@ export default {
                 // Force admin MFA setup if not enabled
                 if (role === "admin" && !totpEnabled) {
                     const isOnMfaSetup = nextUrl.pathname === "/admin/mfa-setup";
-                    const isOnAuth = nextUrl.pathname.startsWith("/api/auth");
-                    if (nextUrl.pathname.startsWith("/admin") && !isOnMfaSetup && !isOnAdminLogin) {
+                    const isOnAuthApi = nextUrl.pathname.startsWith("/api/auth");
+                    if (nextUrl.pathname.startsWith("/admin") && !isOnMfaSetup && !isOnAdminLogin && !isOnAuthApi) {
                         return Response.redirect(new URL("/admin/mfa-setup", nextUrl));
                     }
                 }
@@ -54,20 +54,13 @@ export default {
             const isOnApiDownload = nextUrl.pathname.startsWith("/api/download");
             const isOnApiUpload = nextUrl.pathname.startsWith("/api/upload");
 
-            // Allow access to admin login page without auth
+            // Redirect old admin login page to unified login
             if (isOnAdminLogin) {
-                if (isLoggedIn) {
-                    const role = (auth?.user as { role?: string })?.role;
-                    if (role === "admin") {
-                        return Response.redirect(new URL("/admin", nextUrl));
-                    }
-                    return Response.redirect(new URL("/", nextUrl));
-                }
-                return true;
+                return Response.redirect(new URL("/login", nextUrl));
             }
 
             if (isOnAdmin) {
-                if (!isLoggedIn) return Response.redirect(new URL("/admin/login", nextUrl));
+                if (!isLoggedIn) return Response.redirect(new URL("/login", nextUrl));
                 const role = (auth?.user as { role?: string })?.role;
                 if (role !== "admin") {
                     return Response.redirect(new URL("/", nextUrl));
@@ -108,8 +101,17 @@ export default {
                 token.mfaPending = (user as any).mfaPending || false;
                 token.totpEnabled = (user as any).totpEnabled || false;
             }
-            if (trigger === "update" && (session as any)?.mfaVerified === true) {
-                token.mfaPending = false;
+            if (trigger === "update" && session) {
+                if ((session as any).mfaVerified === true) {
+                    token.mfaPending = false;
+                }
+                if ((session as any).totpEnabled === true) {
+                    token.totpEnabled = true;
+                }
+                if ((session as any).totpEnabled === false) {
+                    token.totpEnabled = false;
+                    token.mfaPending = false;
+                }
             }
             return token;
         },

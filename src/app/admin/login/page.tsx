@@ -42,9 +42,12 @@ export default function AdminLoginPage() {
                     setLoading(false);
                     return;
                 }
+                if (data?.user?.mfaPending) {
+                    router.push("/mfa-verify");
+                    return;
+                }
                 toast.success("Welcome back, Admin");
-                router.push("/admin");
-                router.refresh();
+                window.location.href = "/admin";
             }
         } catch {
             toast.error("Something went wrong");

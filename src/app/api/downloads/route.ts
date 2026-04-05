@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import dbConnect from "@/lib/db";
 import DownloadLog from "@/models/DownloadLog";
+import { rateLimit, rateLimitResponse } from "@/lib/rate-limit";
+
+const limiter = rateLimit({ interval: 60_000, limit: 30 });
 
 export async function GET() {
     try {
@@ -9,6 +12,8 @@ export async function GET() {
         if (!session?.user) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
+        const rl = limiter.check(session.user.id);
+        if (!rl.success) return rateLimitResponse(rl.reset);
 
         await dbConnect();
 

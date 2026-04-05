@@ -8,6 +8,9 @@ export interface IUser extends Document {
     registerNumber: string;
     role: "user" | "admin";
     status: "active" | "suspended";
+    totpSecret: string;
+    totpEnabled: boolean;
+    mfaVerifiedAt: Date;
     createdAt: Date;
     updatedAt: Date;
 }
@@ -46,12 +49,24 @@ const UserSchema = new Schema<IUser>(
             enum: ["active", "suspended"],
             default: "active",
         },
+        totpSecret: {
+            type: String,
+            default: "",
+            select: false,
+        },
+        totpEnabled: {
+            type: Boolean,
+            default: false,
+        },
+        mfaVerifiedAt: {
+            type: Date,
+            select: false,
+        },
     },
     {
         timestamps: true,
     }
 );
-
 
 if (mongoose.models.User) {
     delete mongoose.models.User;

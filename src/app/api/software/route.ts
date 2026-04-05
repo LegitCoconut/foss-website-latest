@@ -2,9 +2,16 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import dbConnect from "@/lib/db";
 import Software from "@/models/Software";
+import { rateLimit, getClientIp, rateLimitResponse } from "@/lib/rate-limit";
+
+const getLimiter = rateLimit({ interval: 60_000, limit: 60 }); // 60 per min per IP
 
 export async function GET(req: Request) {
     try {
+        const ip = getClientIp(req);
+        const { success, reset } = getLimiter.check(ip);
+        if (!success) return rateLimitResponse(reset);
+
         await dbConnect();
 
         const { searchParams } = new URL(req.url);
@@ -93,6 +100,7 @@ export async function POST(req: Request) {
         if (!session?.user || (session.user as { role?: string }).role !== "admin") {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
+
 
         await dbConnect();
         const body = await req.json();

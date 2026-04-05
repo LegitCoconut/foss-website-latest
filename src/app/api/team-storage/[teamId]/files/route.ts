@@ -5,8 +5,12 @@ import Team from "@/models/Team";
 import TeamFile from "@/models/TeamFile";
 import DownloadLog from "@/models/DownloadLog";
 import { getPresignedUploadUrl, deleteFile } from "@/lib/s3";
+import { rateLimit, rateLimitResponse } from "@/lib/rate-limit";
 import crypto from "crypto";
 import path from "path";
+
+const uploadLimiter = rateLimit({ interval: 3600_000, limit: 60 }); // 60 uploads per hour
+const deleteLimiter = rateLimit({ interval: 3600_000, limit: 60 });
 
 // Max individual file size: 2 GB
 const MAX_FILE_SIZE = 2 * 1024 * 1024 * 1024;
@@ -65,6 +69,9 @@ export async function POST(
         if (!team.members.some((m) => m.toString() === session.user!.id)) {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
+
+        const rl = uploadLimiter.check(session.user!.id);
+        if (!rl.success) return rateLimitResponse(rl.reset);
 
         if (team.status === "suspended") {
             return NextResponse.json({ error: "Team is suspended — uploads are disabled" }, { status: 403 });
@@ -173,6 +180,8 @@ export async function DELETE(
         if (!team.members.some((m) => m.toString() === session.user!.id)) {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
+        const rl2 = deleteLimiter.check(session.user!.id);
+        if (!rl2.success) return rateLimitResponse(rl2.reset);
 
         const { fileId } = await req.json();
         if (!fileId) {

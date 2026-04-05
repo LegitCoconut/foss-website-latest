@@ -5,6 +5,7 @@ import { Providers } from "@/components/providers";
 import { Navbar } from "@/components/layout/navbar";
 import { Footer } from "@/components/layout/footer";
 import { PageTracker } from "@/components/common/page-tracker";
+import { RateLimitInterceptor } from "@/components/common/rate-limit-interceptor";
 import { Toaster } from "@/components/ui/sonner";
 
 const geistSans = Geist({
@@ -38,6 +39,7 @@ export default function RootLayout({
           <main className="flex-1">{children}</main>
           <Footer />
           <PageTracker />
+          <RateLimitInterceptor />
           <Toaster position="top-right" richColors />
         </Providers>
       </body>

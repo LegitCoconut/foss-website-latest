@@ -34,12 +34,17 @@ import {
     Mail,
     Calendar,
     Key,
+    Ban,
+    CheckCircle,
+    Trash2,
+    AlertTriangle,
 } from "lucide-react";
 
 interface AdminUser {
     _id: string;
     name: string;
     email: string;
+    status?: string;
     createdAt: string;
 }
 
@@ -69,6 +74,12 @@ export default function AdminManagementPage() {
     const [newPassword, setNewPassword] = useState("");
     const [autoGenerateNewPassword, setAutoGenerateNewPassword] = useState(true);
     const [changingPassword, setChangingPassword] = useState(false);
+
+    // Admin action state
+    const [actionAdmin, setActionAdmin] = useState<AdminUser | null>(null);
+    const [actionType, setActionType] = useState<"suspend" | "activate" | "delete" | null>(null);
+    const [actionPassword, setActionPassword] = useState("");
+    const [actionLoading, setActionLoading] = useState(false);
 
     // Credentials popup state
     const [showCredentials, setShowCredentials] = useState(false);
@@ -192,6 +203,51 @@ export default function AdminManagementPage() {
         setTimeout(() => setCopied(false), 2000);
     }
 
+    function openAction(admin: AdminUser, type: "suspend" | "activate" | "delete") {
+        setActionAdmin(admin);
+        setActionType(type);
+        setActionPassword("");
+    }
+
+    async function confirmAction() {
+        if (!actionAdmin || !actionType) return;
+        if (actionType === "delete" && !actionPassword) {
+            toast.error("Password is required");
+            return;
+        }
+        setActionLoading(true);
+        try {
+            const res = await fetch("/api/admin/create-admin", {
+                method: "DELETE",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    userId: actionAdmin._id,
+                    action: actionType,
+                    ...(actionType === "delete" && { password: actionPassword }),
+                }),
+            });
+            const data = await res.json();
+            if (!res.ok) { toast.error(data.error || "Action failed"); return; }
+
+            if (actionType === "delete") {
+                setAdmins(admins.filter((a) => a._id !== actionAdmin._id));
+                toast.success("Admin deleted");
+            } else if (actionType === "suspend") {
+                setAdmins(admins.map((a) => a._id === actionAdmin._id ? { ...a, status: "suspended" } : a));
+                toast.success("Admin suspended");
+            } else {
+                setAdmins(admins.map((a) => a._id === actionAdmin._id ? { ...a, status: "active" } : a));
+                toast.success("Admin activated");
+            }
+        } catch { toast.error("Something went wrong"); }
+        finally {
+            setActionLoading(false);
+            setActionAdmin(null);
+            setActionType(null);
+            setActionPassword("");
+        }
+    }
+
     return (
         <div className="p-6 space-y-6">
             <div className="flex items-center justify-between">
@@ -227,46 +283,87 @@ export default function AdminManagementPage() {
                                 <TableRow>
                                     <TableHead>Name</TableHead>
                                     <TableHead>Email</TableHead>
+                                    <TableHead>Status</TableHead>
                                     <TableHead>Created</TableHead>
-                                    <TableHead className="w-[100px]"></TableHead>
+                                    <TableHead className="w-[180px]"></TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {admins.map((admin) => (
-                                    <TableRow key={admin._id}>
-                                        <TableCell>
-                                            <div className="flex items-center gap-2">
-                                                <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
-                                                    <Shield className="h-3.5 w-3.5 text-muted-foreground" />
+                                {admins.map((admin) => {
+                                    const adminStatus = admin.status || "active";
+                                    return (
+                                        <TableRow key={admin._id} className={adminStatus === "suspended" ? "opacity-60" : ""}>
+                                            <TableCell>
+                                                <div className="flex items-center gap-2">
+                                                    <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
+                                                        <Shield className="h-3.5 w-3.5 text-muted-foreground" />
+                                                    </div>
+                                                    <span className="font-medium text-sm">{admin.name}</span>
                                                 </div>
-                                                <span className="font-medium text-sm">{admin.name}</span>
-                                            </div>
-                                        </TableCell>
-                                        <TableCell>
-                                            <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                                                <Mail className="h-3.5 w-3.5" />
-                                                {admin.email}
-                                            </div>
-                                        </TableCell>
-                                        <TableCell>
-                                            <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                                                <Calendar className="h-3.5 w-3.5" />
-                                                {new Date(admin.createdAt).toLocaleDateString()}
-                                            </div>
-                                        </TableCell>
-                                        <TableCell>
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                className="h-8 gap-1.5 text-xs"
-                                                onClick={() => openChangePassword(admin)}
-                                            >
-                                                <Key className="h-3.5 w-3.5" />
-                                                Change Password
-                                            </Button>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
+                                            </TableCell>
+                                            <TableCell>
+                                                <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                                                    <Mail className="h-3.5 w-3.5" />
+                                                    {admin.email}
+                                                </div>
+                                            </TableCell>
+                                            <TableCell>
+                                                <Badge className={adminStatus === "active" ? "bg-green-500/10 text-green-400 border-green-500/20" : "bg-red-500/10 text-red-400 border-red-500/20"}>
+                                                    {adminStatus}
+                                                </Badge>
+                                            </TableCell>
+                                            <TableCell>
+                                                <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                                                    <Calendar className="h-3.5 w-3.5" />
+                                                    {new Date(admin.createdAt).toLocaleDateString()}
+                                                </div>
+                                            </TableCell>
+                                            <TableCell>
+                                                <div className="flex items-center gap-1">
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        className="h-8 gap-1 text-xs"
+                                                        onClick={() => openChangePassword(admin)}
+                                                    >
+                                                        <Key className="h-3.5 w-3.5" />
+                                                        Password
+                                                    </Button>
+                                                    {adminStatus === "active" ? (
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="h-8 w-8 text-muted-foreground hover:text-yellow-500"
+                                                            title="Suspend"
+                                                            onClick={() => openAction(admin, "suspend")}
+                                                        >
+                                                            <Ban className="h-3.5 w-3.5" />
+                                                        </Button>
+                                                    ) : (
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="h-8 w-8 text-muted-foreground hover:text-green-500"
+                                                            title="Activate"
+                                                            onClick={() => openAction(admin, "activate")}
+                                                        >
+                                                            <CheckCircle className="h-3.5 w-3.5" />
+                                                        </Button>
+                                                    )}
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                                        title="Delete"
+                                                        onClick={() => openAction(admin, "delete")}
+                                                    >
+                                                        <Trash2 className="h-3.5 w-3.5" />
+                                                    </Button>
+                                                </div>
+                                            </TableCell>
+                                        </TableRow>
+                                    );
+                                })}
                             </TableBody>
                         </Table>
                     )}
@@ -417,6 +514,60 @@ export default function AdminManagementPage() {
                             Update Password
                         </Button>
                     </form>
+                </DialogContent>
+            </Dialog>
+
+            {/* Admin Action Dialog */}
+            <Dialog open={!!actionType} onOpenChange={(open) => { if (!open) { setActionType(null); setActionAdmin(null); setActionPassword(""); } }}>
+                <DialogContent className="border-border/50 bg-background max-w-sm">
+                    {actionType && actionAdmin && (
+                        <>
+                            <DialogHeader>
+                                <DialogTitle className="flex items-center gap-2">
+                                    <AlertTriangle className={`h-5 w-5 ${actionType === "activate" ? "text-green-500" : "text-destructive"}`} />
+                                    {actionType === "delete" ? "Delete Admin" : actionType === "suspend" ? "Suspend Admin" : "Activate Admin"}
+                                </DialogTitle>
+                                <DialogDescription>
+                                    {actionType === "delete"
+                                        ? "This will permanently delete this admin account. Enter your password to confirm."
+                                        : actionType === "suspend"
+                                        ? "This admin will not be able to log in until reactivated."
+                                        : "This admin will be able to log in again."
+                                    }
+                                </DialogDescription>
+                            </DialogHeader>
+                            <div className="rounded-lg bg-muted/50 border border-border/50 p-3 text-sm">
+                                <p className="font-medium">{actionAdmin.name}</p>
+                                <p className="text-muted-foreground text-xs">{actionAdmin.email}</p>
+                            </div>
+                            {actionType === "delete" && (
+                                <div className="space-y-2">
+                                    <Label>Your Password</Label>
+                                    <Input
+                                        type="password"
+                                        placeholder="Enter your password to confirm"
+                                        value={actionPassword}
+                                        onChange={(e) => setActionPassword(e.target.value)}
+                                        className="bg-muted/50 border-border/50"
+                                    />
+                                </div>
+                            )}
+                            <div className="flex gap-2 pt-2">
+                                <Button variant="outline" className="flex-1" onClick={() => { setActionType(null); setActionAdmin(null); setActionPassword(""); }} disabled={actionLoading}>
+                                    Cancel
+                                </Button>
+                                <Button
+                                    variant={actionType === "activate" ? "default" : "destructive"}
+                                    className="flex-1"
+                                    onClick={confirmAction}
+                                    disabled={actionLoading || (actionType === "delete" && !actionPassword)}
+                                >
+                                    {actionLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                    {actionType === "delete" ? "Delete" : actionType === "suspend" ? "Suspend" : "Activate"}
+                                </Button>
+                            </div>
+                        </>
+                    )}
                 </DialogContent>
             </Dialog>
 

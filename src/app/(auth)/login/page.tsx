@@ -21,12 +21,12 @@ export default function LoginPage() {
         if (session?.user) {
             const role = (session.user as { role?: string }).role;
             if (role === "admin") {
-                router.push("/admin");
+                window.location.href = "/admin";
             } else {
-                router.push("/catalog");
+                window.location.href = "/catalog";
             }
         }
-    }, [session, router]);
+    }, [session]);
 
     async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
         e.preventDefault();
@@ -50,13 +50,16 @@ export default function LoginPage() {
                 // Fetch session to determine role
                 const res = await fetch("/api/auth/session");
                 const data = await res.json();
+                if (data?.user?.mfaPending) {
+                    router.push("/mfa-verify");
+                    return;
+                }
                 const role = data?.user?.role;
                 if (role === "admin") {
-                    router.push("/admin");
+                    window.location.href = "/admin";
                 } else {
-                    router.push("/catalog");
+                    window.location.href = "/catalog";
                 }
-                router.refresh();
             }
         } catch {
             toast.error("Something went wrong");

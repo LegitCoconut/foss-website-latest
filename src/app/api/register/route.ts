@@ -3,6 +3,9 @@ import bcrypt from "bcryptjs";
 import { z } from "zod";
 import dbConnect from "@/lib/db";
 import User from "@/models/User";
+import { rateLimit, getClientIp, rateLimitResponse } from "@/lib/rate-limit";
+
+const limiter = rateLimit({ interval: 3600_000, limit: 5 }); // 5 per hour per IP
 
 const registerSchema = z.object({
     name: z.string().min(2, "Name must be at least 2 characters"),
@@ -13,6 +16,10 @@ const registerSchema = z.object({
 
 export async function POST(req: Request) {
     try {
+        const ip = getClientIp(req);
+        const { success, reset } = limiter.check(ip);
+        if (!success) return rateLimitResponse(reset);
+
         const body = await req.json();
         const validation = registerSchema.safeParse(body);
 

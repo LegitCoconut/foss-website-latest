@@ -4,6 +4,9 @@ import dbConnect from "@/lib/db";
 import Software from "@/models/Software";
 import DownloadLog from "@/models/DownloadLog";
 import { getPresignedDownloadUrl } from "@/lib/s3";
+import { rateLimit, rateLimitResponse } from "@/lib/rate-limit";
+
+const limiter = rateLimit({ interval: 3600_000, limit: 100 }); // 100 downloads per hour per user
 
 export async function GET(
     req: Request,
@@ -16,6 +19,9 @@ export async function GET(
         if (!session?.user) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
+
+        const { success, reset } = limiter.check(session.user.id);
+        if (!success) return rateLimitResponse(reset);
 
         await dbConnect();
 

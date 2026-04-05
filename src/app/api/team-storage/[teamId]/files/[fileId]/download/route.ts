@@ -5,6 +5,9 @@ import Team from "@/models/Team";
 import TeamFile from "@/models/TeamFile";
 import DownloadLog from "@/models/DownloadLog";
 import { getPresignedDownloadUrl } from "@/lib/s3";
+import { rateLimit, rateLimitResponse } from "@/lib/rate-limit";
+
+const limiter = rateLimit({ interval: 3600_000, limit: 100 });
 
 export async function GET(
     req: Request,
@@ -27,6 +30,8 @@ export async function GET(
         if (!team.members.some((m) => m.toString() === session.user!.id)) {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
+        const rl = limiter.check(session.user!.id);
+        if (!rl.success) return rateLimitResponse(rl.reset);
 
         const file = await TeamFile.findOne({ _id: fileId, teamId: team._id });
         if (!file) {

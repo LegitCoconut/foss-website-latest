@@ -5,6 +5,8 @@ declare module "next-auth" {
         user: {
             id: string;
             role: string;
+            mfaPending: boolean;
+            totpEnabled: boolean;
         } & DefaultSession["user"];
     }
 

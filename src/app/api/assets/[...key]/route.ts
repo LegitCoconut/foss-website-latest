@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { s3Client } from "@/lib/s3";
 import { GetObjectCommand } from "@aws-sdk/client-s3";
+import { rateLimit, getClientIp, rateLimitResponse } from "@/lib/rate-limit";
+
+const limiter = rateLimit({ interval: 60_000, limit: 120 }); // 120 per min (cacheable assets)
 
 export async function GET(
     req: Request,
@@ -8,6 +11,10 @@ export async function GET(
 ) {
     try {
         const { key } = await params;
+        const ip = getClientIp(req);
+        const { success, reset } = limiter.check(ip);
+        if (!success) return rateLimitResponse(reset);
+
         const objectKey = key.join("/");
 
         const command = new GetObjectCommand({

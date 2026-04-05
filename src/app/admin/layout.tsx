@@ -14,6 +14,8 @@ import {
     ChevronLeft,
     LogOut,
     ShieldPlus,
+    ShieldCheck,
+    ShieldAlert,
     Database,
     Sun,
     Moon,
@@ -21,6 +23,7 @@ import {
     FolderArchive,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+
 import { useTheme } from "next-themes";
 
 const adminLinks = [
@@ -133,6 +136,27 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                             );
                         })}
                     </nav>
+                    {/* User section */}
+                    {session?.user && (
+                        <Link
+                            href="/admin/profile"
+                            className="flex items-center gap-3 border-t border-border/50 pt-3 mt-3 px-3 py-2 rounded-lg hover:bg-foreground/[0.04] transition-colors"
+                        >
+                            <div className="h-8 w-8 rounded-full bg-muted border border-border/50 flex items-center justify-center flex-shrink-0 relative">
+                                <span className="text-xs font-bold">{session.user.name?.charAt(0).toUpperCase()}</span>
+                                <div className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-background ${(session.user as any).totpEnabled ? "bg-green-500" : "bg-red-500"}`} />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium truncate">{session.user.name}</p>
+                                <p className="text-[11px] text-muted-foreground truncate">{session.user.email}</p>
+                            </div>
+                            {(session.user as any).totpEnabled ? (
+                                <ShieldCheck className="h-4 w-4 text-green-500 flex-shrink-0" />
+                            ) : (
+                                <ShieldAlert className="h-4 w-4 text-red-500 flex-shrink-0" />
+                            )}
+                        </Link>
+                    )}
                     <button
                         onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
                         className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-foreground/[0.04] transition-colors"
