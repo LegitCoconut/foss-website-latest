@@ -26,7 +26,7 @@ export const {
 
                 await dbConnect();
 
-                const user = await User.findOne({ email: credentials.email }).select("+password");
+                const user = await User.findOne({ email: credentials.email }).select("+password totpEnabled");
                 if (!user || !user.password) {
                     return null;
                 }
@@ -49,6 +49,8 @@ export const {
                     name: user.name,
                     email: user.email,
                     role: user.role,
+                    totpEnabled: user.totpEnabled || false,
+                    mfaPending: user.totpEnabled || false,
                 };
             },
         }),

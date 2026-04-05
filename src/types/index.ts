@@ -10,6 +10,8 @@ declare module "next-auth" {
 
     interface User {
         role?: string;
+        mfaPending?: boolean;
+        totpEnabled?: boolean;
     }
 }
 

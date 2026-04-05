@@ -21,9 +21,36 @@ export default {
     callbacks: {
         authorized({ auth, request: { nextUrl } }) {
             const isLoggedIn = !!auth?.user;
+            const isOnAdminLogin = nextUrl.pathname === "/admin/login";
+
+            // MFA enforcement
+            if (isLoggedIn) {
+                const mfaPending = (auth?.user as any)?.mfaPending;
+                const totpEnabled = (auth?.user as any)?.totpEnabled;
+                const role = (auth?.user as any)?.role;
+
+                // If MFA verification pending, only allow mfa-verify page and auth APIs
+                if (mfaPending) {
+                    const mfaAllowedPaths = ["/mfa-verify", "/api/auth"];
+                    const isAllowed = mfaAllowedPaths.some(p => nextUrl.pathname.startsWith(p));
+                    if (!isAllowed) {
+                        return Response.redirect(new URL("/mfa-verify", nextUrl));
+                    }
+                    return true;
+                }
+
+                // Force admin MFA setup if not enabled
+                if (role === "admin" && !totpEnabled) {
+                    const isOnMfaSetup = nextUrl.pathname === "/admin/mfa-setup";
+                    const isOnAuth = nextUrl.pathname.startsWith("/api/auth");
+                    if (nextUrl.pathname.startsWith("/admin") && !isOnMfaSetup && !isOnAdminLogin) {
+                        return Response.redirect(new URL("/admin/mfa-setup", nextUrl));
+                    }
+                }
+            }
+
             const isOnDashboard = nextUrl.pathname.startsWith("/dashboard");
             const isOnAdmin = nextUrl.pathname.startsWith("/admin");
-            const isOnAdminLogin = nextUrl.pathname === "/admin/login";
             const isOnApiDownload = nextUrl.pathname.startsWith("/api/download");
             const isOnApiUpload = nextUrl.pathname.startsWith("/api/upload");
 
@@ -74,17 +101,24 @@ export default {
 
             return true;
         },
-        jwt({ token, user }) {
+        jwt({ token, user, trigger, session }) {
             if (user) {
                 token.id = user.id;
-                token.role = (user as { role?: string }).role;
+                token.role = (user as any).role;
+                token.mfaPending = (user as any).mfaPending || false;
+                token.totpEnabled = (user as any).totpEnabled || false;
+            }
+            if (trigger === "update" && (session as any)?.mfaVerified === true) {
+                token.mfaPending = false;
             }
             return token;
         },
         session({ session, token }) {
             if (session.user) {
                 session.user.id = token.id as string;
-                (session.user as { role?: string }).role = token.role as string;
+                (session.user as any).role = token.role as string;
+                (session.user as any).mfaPending = token.mfaPending as boolean;
+                (session.user as any).totpEnabled = token.totpEnabled as boolean;
             }
             return session;
         },
