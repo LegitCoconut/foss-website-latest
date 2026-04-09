@@ -4,16 +4,13 @@ import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import FeaturedSoftwareGrid from "@/components/featured-software-grid";
 import { auth } from "@/lib/auth";
+import { categoryColors, categoryIcons, formatBytes } from "@/lib/software-ui";
 import {
   Download,
   Shield,
-  Zap,
   Package,
-  Monitor,
-  Code,
-  Wrench,
-  Film,
   ArrowRight,
   Users,
   HardDrive,
@@ -23,37 +20,12 @@ import dbConnect from "@/lib/db";
 import Software from "@/models/Software";
 
 const categories = [
-  { slug: "operating-system", label: "Operating Systems", icon: Monitor },
-  { slug: "development", label: "Development", icon: Code },
-  { slug: "productivity", label: "Productivity", icon: Zap },
-  { slug: "utility", label: "Utilities", icon: Wrench },
-  { slug: "multimedia", label: "Multimedia", icon: Film },
+  { slug: "operating-system", label: "Operating Systems", icon: categoryIcons["operating-system"] },
+  { slug: "development", label: "Development", icon: categoryIcons.development },
+  { slug: "productivity", label: "Productivity", icon: categoryIcons.productivity },
+  { slug: "utility", label: "Utilities", icon: categoryIcons.utility },
+  { slug: "multimedia", label: "Multimedia", icon: categoryIcons.multimedia },
 ];
-
-const categoryIcons: Record<string, React.ElementType> = {
-  "operating-system": Monitor,
-  development: Code,
-  productivity: Zap,
-  utility: Wrench,
-  multimedia: Film,
-  other: Package,
-};
-
-const categoryColors: Record<string, string> = {
-  "operating-system": "from-blue-500 to-cyan-500",
-  development: "from-green-500 to-emerald-500",
-  productivity: "from-yellow-500 to-orange-500",
-  utility: "from-purple-500 to-pink-500",
-  multimedia: "from-red-500 to-rose-500",
-  other: "from-gray-500 to-slate-500",
-};
-
-function formatBytes(bytes: number): string {
-  if (bytes === 0) return "0 B";
-  const units = ["B", "KB", "MB", "GB", "TB"];
-  const i = Math.floor(Math.log(bytes) / Math.log(1024));
-  return `${(bytes / Math.pow(1024, i)).toFixed(i > 1 ? 1 : 0)} ${units[i]}`;
-}
 
 const steps = [
   {
@@ -71,10 +43,19 @@ const steps = [
   {
     step: "03",
     title: "Download Fast",
-    description: "Get files at LAN speed with secure signed URLs",
+    description: "Access trusted packages with clear links and setup steps",
     icon: Download,
   },
 ];
+
+const categorySoftColors: Record<string, string> = {
+  "operating-system": "from-blue-500/15 via-blue-500/10 to-cyan-500/20",
+  development: "from-green-500/15 via-emerald-500/10 to-emerald-500/20",
+  productivity: "from-yellow-500/15 via-orange-500/10 to-orange-500/20",
+  utility: "from-purple-500/15 via-pink-500/10 to-pink-500/20",
+  multimedia: "from-red-500/15 via-rose-500/10 to-rose-500/20",
+  other: "from-slate-500/15 via-slate-500/10 to-slate-500/20",
+};
 
 export default async function HomePage() {
   const session = await auth();
@@ -84,19 +65,37 @@ export default async function HomePage() {
   }
 
   await dbConnect();
-  const featuredRaw = await Software.find({ isFeatured: true, status: "published" })
-    .sort({ createdAt: -1 })
-    .limit(6)
-    .lean();
+  const [featuredRaw, recentRaw] = await Promise.all([
+    Software.find({ isFeatured: true, status: "published" })
+      .sort({ createdAt: -1 })
+      .lean(),
+    Software.find({ status: "published" })
+      .sort({ createdAt: -1 })
+      .limit(3)
+      .lean(),
+  ]);
 
-  const featured = featuredRaw.map((sw) => ({
+  const mapSoftware = (sw: {
+    _id: unknown;
+    name?: string;
+    slug?: string;
+    description?: string;
+    category?: string;
+    iconKey?: string;
+    totalDownloads?: number;
+    versions?: {
+      isDeleted?: boolean;
+      versionNumber?: string;
+      fileSize?: number;
+      files?: { fileSize?: number }[];
+    }[];
+  }) => ({
     _id: String(sw._id),
-    name: sw.name,
-    slug: sw.slug,
+    name: sw.name || "Untitled",
+    slug: sw.slug || "",
     description: sw.description || "",
     category: sw.category || "other",
     iconKey: sw.iconKey || "",
-    isFeatured: true,
     totalDownloads: sw.totalDownloads || 0,
     versions: (sw.versions || [])
       .filter((v: { isDeleted?: boolean }) => !v.isDeleted)
@@ -104,7 +103,10 @@ export default async function HomePage() {
         versionNumber: v.versionNumber || "",
         fileSize: v.fileSize || (v.files || []).reduce((sum: number, f: { fileSize?: number }) => sum + (f.fileSize || 0), 0),
       })),
-  }));
+  });
+
+  const featured = featuredRaw.map(mapSoftware);
+  const recent = recentRaw.map(mapSoftware);
 
   return (
     <div className="relative">
@@ -117,23 +119,23 @@ export default async function HomePage() {
               className="px-4 py-1.5 text-xs font-medium"
             >
               <HardDrive className="h-3 w-3 mr-1.5" />
-              Campus LAN Distribution
+              Student-Led Digital Initiative
             </Badge>
 
             <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold tracking-tight">
               <span className="text-foreground">
-                Free Software,{" "}
+                FOSS Hub
               </span>
               <br />
               <span className="text-muted-foreground">
-                Lightning Fast
+                By Students, For Campus and Society
               </span>
             </h1>
 
             <p className="text-base md:text-lg text-muted-foreground max-w-2xl mx-auto leading-relaxed">
-              Download open source software, operating systems, and development
-              tools at LAN speed. Curated for students, powered by the campus
-              network.
+              A digital initiative by students of VIT Chennai to promote the
+              usage of free and open-source software across the campus and the
+              wider society. Discover, learn, and build with trusted tools.
             </p>
 
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-4">
@@ -163,15 +165,15 @@ export default async function HomePage() {
             </div>
             <div>
               <p className="text-3xl md:text-4xl font-bold tabular-nums">
-                10 Gbps
+                Student-Led
               </p>
-              <p className="text-sm text-muted-foreground mt-1">LAN Speed</p>
+              <p className="text-sm text-muted-foreground mt-1">Built by VIT Chennai</p>
             </div>
             <div>
               <p className="text-3xl md:text-4xl font-bold tabular-nums">
-                24/7
+                Open to All
               </p>
-              <p className="text-sm text-muted-foreground mt-1">Always Available</p>
+              <p className="text-sm text-muted-foreground mt-1">Campus and Society</p>
             </div>
           </div>
         </div>
@@ -191,8 +193,25 @@ export default async function HomePage() {
             </p>
           </div>
 
+          <FeaturedSoftwareGrid items={featured} />
+        </section>
+      )}
+
+      {/* Recently Added */}
+      {recent.length > 0 && (
+        <section className="container mx-auto px-4 pb-20">
+          <div className="text-center mb-12">
+            <Badge variant="secondary" className="px-3 py-1 text-xs font-medium mb-4">
+              Latest Drops
+            </Badge>
+            <h2 className="text-2xl md:text-3xl font-bold tracking-tight mb-3">Recently Added</h2>
+            <p className="text-sm text-muted-foreground max-w-lg mx-auto">
+              Fresh software uploads added to the hub
+            </p>
+          </div>
+
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {featured.map((sw) => {
+            {recent.map((sw) => {
               const Icon = categoryIcons[sw.category] || Package;
               const color = categoryColors[sw.category] || categoryColors.other;
               const latestVersion = sw.versions[0];
@@ -217,9 +236,8 @@ export default async function HomePage() {
                             <Icon className="h-5 w-5 text-white" />
                           </div>
                         )}
-                        <Badge variant="secondary" className="text-[10px] bg-yellow-500/10 text-yellow-500 border-yellow-500/20">
-                          <Star className="h-2.5 w-2.5 mr-1" />
-                          Featured
+                        <Badge variant="secondary" className="text-[10px] bg-emerald-500/10 text-emerald-500 border-emerald-500/20">
+                          New
                         </Badge>
                       </div>
 
@@ -260,19 +278,27 @@ export default async function HomePage() {
           </p>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-          {categories.map((cat) => (
-            <Link key={cat.slug} href={`/catalog?category=${cat.slug}`}>
-              <Card className="group border-border/50 hover:bg-muted/50 transition-all duration-200 cursor-pointer">
-                <CardContent className="p-5 text-center">
-                  <div className="mx-auto mb-3 h-10 w-10 rounded-lg bg-foreground/[0.08] border border-border/50 flex items-center justify-center group-hover:bg-foreground/[0.12] transition-colors">
-                    <cat.icon className="h-5 w-5 text-foreground/60" />
-                  </div>
-                  <h3 className="text-sm font-medium">{cat.label}</h3>
-                </CardContent>
-              </Card>
-            </Link>
-          ))}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+          {categories.map((cat) => {
+            const gradient = categorySoftColors[cat.slug] || categorySoftColors.other;
+            const Icon = cat.icon;
+
+            return (
+              <Link key={cat.slug} href={`/catalog?category=${cat.slug}`}>
+                <Card className={`group relative overflow-hidden border border-foreground/10 bg-gradient-to-br ${gradient} shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg`}>
+                  <CardContent className="p-6">
+                    <div className="flex items-start justify-between">
+                      <Icon className="h-9 w-9 text-foreground/80" strokeWidth={2} />
+                    </div>
+                    <h3 className="mt-4 text-base font-bold tracking-tight text-foreground">
+                      {cat.label}
+                    </h3>
+                    <p className="text-xs text-muted-foreground">Curated tools for this category</p>
+                  </CardContent>
+                </Card>
+              </Link>
+            );
+          })}
         </div>
       </section>
 
