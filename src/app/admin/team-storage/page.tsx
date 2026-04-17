@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -341,83 +342,59 @@ export default function AdminTeamStoragePage() {
                     {filtered.map((team) => {
                         const pct = usagePercent(team.totalStorageUsed, team.storageLimit);
                         return (
-                            <Card key={team._id} className="border-border/50">
-                                <CardContent className="p-5 space-y-4">
-                                    <div className="flex items-start justify-between">
-                                        <div className="min-w-0">
-                                            <h3 className="font-semibold text-base">{team.name}</h3>
+                            <Link
+                                key={team._id}
+                                href={`/admin/team-storage/${team._id}`}
+                                className="block group"
+                            >
+                                <Card className="border-border/50 hover:bg-muted/30 hover:border-border transition-colors h-full">
+                                    <CardContent className="p-5 space-y-4">
+                                        <div>
+                                            <h3 className="font-semibold text-base group-hover:underline">{team.name}</h3>
                                             {team.description && (
                                                 <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">{team.description}</p>
                                             )}
-                                            <div className="flex items-center gap-2 mt-1">
+                                            <div className="flex items-center gap-2 mt-1.5">
                                                 <Badge className={`text-[10px] ${statusColors[team.status]}`}>
                                                     {team.status}
                                                 </Badge>
                                             </div>
                                         </div>
-                                        <div className="flex items-center gap-1">
-                                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openMembers(team)}>
-                                                <UserPlus className="h-3.5 w-3.5" />
-                                            </Button>
-                                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(team)}>
-                                                <Pencil className="h-3.5 w-3.5" />
-                                            </Button>
-                                        </div>
-                                    </div>
 
-                                    <div className="grid grid-cols-3 gap-3 text-center">
-                                        <div>
-                                            <Users className="h-3.5 w-3.5 mx-auto text-muted-foreground mb-1" />
-                                            <p className="text-sm font-semibold tabular-nums">{team.memberCount}</p>
-                                            <p className="text-[10px] text-muted-foreground">Members</p>
+                                        <div className="grid grid-cols-3 gap-3 text-center">
+                                            <div>
+                                                <Users className="h-3.5 w-3.5 mx-auto text-muted-foreground mb-1" />
+                                                <p className="text-sm font-semibold tabular-nums">{team.memberCount}</p>
+                                                <p className="text-[10px] text-muted-foreground">Members</p>
+                                            </div>
+                                            <div>
+                                                <Files className="h-3.5 w-3.5 mx-auto text-muted-foreground mb-1" />
+                                                <p className="text-sm font-semibold tabular-nums">{team.fileCount}</p>
+                                                <p className="text-[10px] text-muted-foreground">Files</p>
+                                            </div>
+                                            <div>
+                                                <HardDrive className="h-3.5 w-3.5 mx-auto text-muted-foreground mb-1" />
+                                                <p className="text-sm font-semibold tabular-nums">{formatBytes(team.totalStorageUsed)}</p>
+                                                <p className="text-[10px] text-muted-foreground">Used</p>
+                                            </div>
                                         </div>
-                                        <div>
-                                            <Files className="h-3.5 w-3.5 mx-auto text-muted-foreground mb-1" />
-                                            <p className="text-sm font-semibold tabular-nums">{team.fileCount}</p>
-                                            <p className="text-[10px] text-muted-foreground">Files</p>
-                                        </div>
-                                        <div>
-                                            <HardDrive className="h-3.5 w-3.5 mx-auto text-muted-foreground mb-1" />
-                                            <p className="text-sm font-semibold tabular-nums">{formatBytes(team.totalStorageUsed)}</p>
-                                            <p className="text-[10px] text-muted-foreground">Used</p>
-                                        </div>
-                                    </div>
 
-                                    {/* Storage bar */}
-                                    <div>
-                                        <div className="flex items-center justify-between text-[11px] text-muted-foreground mb-1">
-                                            <span>{formatBytes(team.totalStorageUsed)} / {formatBytes(team.storageLimit)}</span>
-                                            <span>{pct.toFixed(0)}%</span>
+                                        {/* Storage bar */}
+                                        <div>
+                                            <div className="flex items-center justify-between text-[11px] text-muted-foreground mb-1">
+                                                <span>{formatBytes(team.totalStorageUsed)} / {formatBytes(team.storageLimit)}</span>
+                                                <span>{pct.toFixed(0)}%</span>
+                                            </div>
+                                            <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                                                <div
+                                                    className={`h-full rounded-full transition-all ${pct > 90 ? "bg-red-500" : pct > 70 ? "bg-yellow-500" : "bg-green-400/60"}`}
+                                                    style={{ width: `${pct}%` }}
+                                                />
+                                            </div>
                                         </div>
-                                        <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                                            <div
-                                                className={`h-full rounded-full transition-all ${pct > 90 ? "bg-red-500" : pct > 70 ? "bg-yellow-500" : "bg-green-400/60"}`}
-                                                style={{ width: `${pct}%` }}
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div className="flex items-center gap-1.5 pt-1">
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            className="flex-1 h-7 text-xs gap-1"
-                                            onClick={() => setSuspendTeam(team)}
-                                        >
-                                            {team.status === "active" ? <Ban className="h-3 w-3" /> : <CheckCircle className="h-3 w-3" />}
-                                            {team.status === "active" ? "Suspend" : "Activate"}
-                                        </Button>
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            className="h-7 w-7 p-0 text-destructive hover:text-destructive"
-                                            onClick={() => openDelete(team)}
-                                        >
-                                            <Trash2 className="h-3 w-3" />
-                                        </Button>
-                                    </div>
-                                </CardContent>
-                            </Card>
+                                    </CardContent>
+                                </Card>
+                            </Link>
                         );
                     })}
                 </div>
@@ -439,7 +416,11 @@ export default function AdminTeamStoragePage() {
                             <TableBody>
                                 {filtered.map((team) => (
                                     <TableRow key={team._id}>
-                                        <TableCell className="font-medium">{team.name}</TableCell>
+                                        <TableCell className="font-medium">
+                                            <Link href={`/admin/team-storage/${team._id}`} className="hover:underline">
+                                                {team.name}
+                                            </Link>
+                                        </TableCell>
                                         <TableCell>
                                             <Badge className={`text-[10px] ${statusColors[team.status]}`}>
                                                 {team.status}

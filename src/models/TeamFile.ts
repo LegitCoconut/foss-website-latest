@@ -4,6 +4,7 @@ export interface ITeamFile extends Document {
     _id: mongoose.Types.ObjectId;
     teamId: mongoose.Types.ObjectId;
     uploadedBy: mongoose.Types.ObjectId;
+    sharedWith: mongoose.Types.ObjectId[];
     fileKey: string;
     fileName: string;
     fileSize: number;
@@ -24,6 +25,12 @@ const TeamFileSchema = new Schema<ITeamFile>(
             ref: "User",
             required: true,
         },
+        sharedWith: [
+            {
+                type: Schema.Types.ObjectId,
+                ref: "User",
+            },
+        ],
         fileKey: {
             type: String,
             required: true,

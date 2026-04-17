@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
+import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
 import {
     DropdownMenu,
@@ -19,8 +20,10 @@ import {
     LayoutDashboard,
     Shield,
     MessageSquare,
+    Sun,
+    Moon,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 const navLinks = [
     { href: "/catalog", label: "Catalog" },
@@ -31,6 +34,25 @@ const authNavLinks = [
     { href: "/catalog", label: "Catalog" },
     { href: "/dashboard", label: "My Dashboard" },
 ];
+
+function ThemeToggle() {
+    const { theme, setTheme } = useTheme();
+    const [mounted, setMounted] = useState(false);
+    useEffect(() => setMounted(true), []);
+    if (!mounted) return <div className="h-8 w-8" />;
+    const isDark = theme === "dark";
+    return (
+        <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={() => setTheme(isDark ? "light" : "dark")}
+            title={isDark ? "Switch to light mode" : "Switch to dark mode"}
+        >
+            {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+        </Button>
+    );
+}
 
 export function Navbar() {
     const pathname = usePathname();
@@ -75,6 +97,7 @@ export function Navbar() {
 
                 {/* Desktop actions */}
                 <div className="hidden md:flex items-center gap-2">
+                    <ThemeToggle />
                     {session?.user ? (
                         isAdmin ? (
                             <div className="flex items-center gap-2">

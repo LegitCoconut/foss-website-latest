@@ -18,7 +18,7 @@ export async function GET(
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
         const rl = limiter.check(session.user.id);
-        if (!rl.success) return rateLimitResponse(rl.reset);
+        if (!rl.success) return rateLimitResponse(rl.reset, { req: req, path: "/api/team-storage/[teamId]", userId: session?.user?.id, userName: session?.user?.name, userEmail: session?.user?.email });
 
         await dbConnect();
 
@@ -30,16 +30,18 @@ export async function GET(
             return NextResponse.json({ error: "Team not found" }, { status: 404 });
         }
 
-        // Verify membership
+        // Verify membership or admin role
         const isMember = team.members.some(
             (m: { _id: { toString(): string } }) => m._id.toString() === session.user!.id
         );
-        if (!isMember) {
+        const isAdmin = (session.user as { role?: string }).role === "admin";
+        if (!isMember && !isAdmin) {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
         const files = await TeamFile.find({ teamId: team._id })
             .populate("uploadedBy", "name email")
+            .populate("sharedWith", "name email")
             .sort({ createdAt: -1 })
             .lean();
 

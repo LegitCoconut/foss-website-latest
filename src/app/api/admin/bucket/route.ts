@@ -7,7 +7,12 @@ import Software from "@/models/Software";
 import Team from "@/models/Team";
 import TeamFile from "@/models/TeamFile";
 import User from "@/models/User";
+import { rateLimit, rateLimitResponse } from "@/lib/rate-limit";
 import bcrypt from "bcryptjs";
+
+// Bucket listing is expensive (S3 pagination + DB query). Limit per admin.
+const readLimiter = rateLimit({ interval: 60_000, limit: 10 });
+const deleteLimiter = rateLimit({ interval: 3600_000, limit: 60 });
 
 async function listBucket(bucket: string) {
     const files: { key: string; size: number; lastModified: string }[] = [];
@@ -33,12 +38,15 @@ async function listBucket(bucket: string) {
     return files;
 }
 
-export async function GET() {
+export async function GET(req: Request) {
     try {
         const session = await auth();
         if (!session?.user || (session.user as { role?: string }).role !== "admin") {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
+
+        const rl = readLimiter.check(session.user.id);
+        if (!rl.success) return rateLimitResponse(rl.reset, { req, path: "/api/admin/bucket", userId: session?.user?.id, userName: session?.user?.name, userEmail: session?.user?.email });
 
         const filesBucket = process.env.S3_FILES_BUCKET!;
         const assetsBucket = process.env.S3_ASSETS_BUCKET!;
@@ -152,6 +160,9 @@ export async function DELETE(req: Request) {
         if (!session?.user || (session.user as { role?: string }).role !== "admin") {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
+
+        const rl = deleteLimiter.check(session.user.id);
+        if (!rl.success) return rateLimitResponse(rl.reset, { req: req, path: "/api/admin/bucket", userId: session?.user?.id, userName: session?.user?.name, userEmail: session?.user?.email });
 
         const body = await req.json();
         const { key, bucket, isOrphan, password, confirmText, softwareName } = body;

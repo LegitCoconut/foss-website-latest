@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import dbConnect from "@/lib/db";
-import DownloadLog from "@/models/DownloadLog";
+import RateLimitLog from "@/models/RateLimitLog";
 import { rateLimit, rateLimitResponse } from "@/lib/rate-limit";
 
 const limiter = rateLimit({ interval: 60_000, limit: 30 });
@@ -14,7 +14,7 @@ export async function GET(req: Request) {
         }
 
         const rl = limiter.check(session.user.id);
-        if (!rl.success) return rateLimitResponse(rl.reset, { req: req, path: "/api/admin/logs", userId: session?.user?.id, userName: session?.user?.name, userEmail: session?.user?.email });
+        if (!rl.success) return rateLimitResponse(rl.reset, { req, path: "/api/admin/logs/rate-limits", userId: session?.user?.id, userName: session?.user?.name, userEmail: session?.user?.email });
 
         await dbConnect();
 
@@ -28,16 +28,14 @@ export async function GET(req: Request) {
             query.$or = [
                 { userName: { $regex: search, $options: "i" } },
                 { userEmail: { $regex: search, $options: "i" } },
-                { softwareName: { $regex: search, $options: "i" } },
                 { ipAddress: { $regex: search, $options: "i" } },
-                { fileName: { $regex: search, $options: "i" } },
-                { teamName: { $regex: search, $options: "i" } },
-                { type: { $regex: search, $options: "i" } },
+                { path: { $regex: search, $options: "i" } },
+                { method: { $regex: search, $options: "i" } },
             ];
         }
 
-        const total = await DownloadLog.countDocuments(query);
-        const logs = await DownloadLog.find(query)
+        const total = await RateLimitLog.countDocuments(query);
+        const logs = await RateLimitLog.find(query)
             .sort({ createdAt: -1 })
             .skip((page - 1) * limit)
             .limit(limit)
@@ -48,7 +46,7 @@ export async function GET(req: Request) {
             pagination: { page, limit, total, pages: Math.ceil(total / limit) },
         });
     } catch (error) {
-        console.error("Logs error:", error);
+        console.error("Rate-limit logs error:", error);
         return NextResponse.json({ error: "Internal server error" }, { status: 500 });
     }
 }

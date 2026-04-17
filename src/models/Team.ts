@@ -5,6 +5,7 @@ export interface ITeam extends Document {
     name: string;
     description: string;
     storageLimit: number;
+    maxFileSize?: number;
     status: "active" | "suspended";
     members: mongoose.Types.ObjectId[];
     createdAt: Date;
@@ -26,6 +27,10 @@ const TeamSchema = new Schema<ITeam>(
         storageLimit: {
             type: Number,
             required: [true, "Storage limit is required"],
+        },
+        maxFileSize: {
+            type: Number,
+            required: false,
         },
         status: {
             type: String,

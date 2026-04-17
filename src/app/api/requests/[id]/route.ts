@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import dbConnect from "@/lib/db";
 import SoftwareRequest from "@/models/SoftwareRequest";
+import { rateLimit, rateLimitResponse } from "@/lib/rate-limit";
+
+const limiter = rateLimit({ interval: 3600_000, limit: 120 });
 
 export async function PATCH(
     req: Request,
@@ -13,6 +16,9 @@ export async function PATCH(
         if (!session?.user || (session.user as { role?: string }).role !== "admin") {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
+
+        const rl = limiter.check(session.user.id);
+        if (!rl.success) return rateLimitResponse(rl.reset, { req: req, path: "/api/requests/[id]", userId: session?.user?.id, userName: session?.user?.name, userEmail: session?.user?.email });
 
         await dbConnect();
         const body = await req.json();

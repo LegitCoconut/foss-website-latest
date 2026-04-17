@@ -10,7 +10,7 @@ export async function GET(req: Request) {
     try {
         const ip = getClientIp(req);
         const { success, reset } = getLimiter.check(ip);
-        if (!success) return rateLimitResponse(reset);
+        if (!success) return rateLimitResponse(reset, { req, path: "/api/software" });
 
         await dbConnect();
 

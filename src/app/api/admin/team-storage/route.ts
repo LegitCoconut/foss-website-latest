@@ -3,13 +3,20 @@ import { auth } from "@/lib/auth";
 import dbConnect from "@/lib/db";
 import Team from "@/models/Team";
 import TeamFile from "@/models/TeamFile";
+import { rateLimit, rateLimitResponse } from "@/lib/rate-limit";
 
-export async function GET() {
+const readLimiter = rateLimit({ interval: 60_000, limit: 30 });
+const writeLimiter = rateLimit({ interval: 3600_000, limit: 30 });
+
+export async function GET(req: Request) {
     try {
         const session = await auth();
         if (!session?.user || (session.user as { role?: string }).role !== "admin") {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
+
+        const rl = readLimiter.check(session.user.id);
+        if (!rl.success) return rateLimitResponse(rl.reset, { req, path: "/api/admin/team-storage", userId: session?.user?.id, userName: session?.user?.name, userEmail: session?.user?.email });
 
         await dbConnect();
 
@@ -59,6 +66,9 @@ export async function POST(req: Request) {
         if (!session?.user || (session.user as { role?: string }).role !== "admin") {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
+
+        const rl = writeLimiter.check(session.user.id);
+        if (!rl.success) return rateLimitResponse(rl.reset, { req: req, path: "/api/admin/team-storage", userId: session?.user?.id, userName: session?.user?.name, userEmail: session?.user?.email });
 
         await dbConnect();
         const { name, description, storageLimit } = await req.json();

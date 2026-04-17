@@ -2,8 +2,12 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { s3Client } from "@/lib/s3";
 import { ListObjectsV2Command } from "@aws-sdk/client-s3";
+import { rateLimit, rateLimitResponse } from "@/lib/rate-limit";
 import os from "os";
 import { execFileSync } from "child_process";
+
+// System stats + S3 listing + shell execs — protect from spam
+const limiter = rateLimit({ interval: 60_000, limit: 20 });
 
 function getCpuUsage(): Promise<number> {
     const cpus = os.cpus();
@@ -111,12 +115,15 @@ function getNetworkStats(): { rx: number; tx: number; interface: string } {
     }
 }
 
-export async function GET() {
+export async function GET(req: Request) {
     try {
         const session = await auth();
         if (!session?.user || (session.user as { role?: string }).role !== "admin") {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
+
+        const rl = limiter.check(session.user.id);
+        if (!rl.success) return rateLimitResponse(rl.reset, { req, path: "/api/admin/system-stats", userId: session?.user?.id, userName: session?.user?.name, userEmail: session?.user?.email });
 
         const [cpuUsage, s3Usage] = await Promise.all([
             getCpuUsage(),

@@ -88,10 +88,48 @@ export function getClientIp(req: Request): string {
     return raw.startsWith("::ffff:") ? raw.slice(7) : raw;
 }
 
+interface RateLimitLogContext {
+    req: Request;
+    path: string;
+    userId?: string | null;
+    userName?: string | null;
+    userEmail?: string | null;
+}
+
+/**
+ * Fire-and-forget log of a rate-limit hit. Writes to RateLimitLog.
+ * Runs async so callers never await it.
+ */
+function logRateLimitHit(ctx: RateLimitLogContext) {
+    (async () => {
+        try {
+            // Dynamic import to avoid loading Mongoose on every request when not limiting
+            const [{ default: dbConnect }, { default: RateLimitLog }] = await Promise.all([
+                import("@/lib/db"),
+                import("@/models/RateLimitLog"),
+            ]);
+            await dbConnect();
+            await RateLimitLog.create({
+                userId: ctx.userId || undefined,
+                userName: ctx.userName || "",
+                userEmail: ctx.userEmail || "",
+                ipAddress: getClientIp(ctx.req),
+                path: ctx.path,
+                method: ctx.req.method,
+            });
+        } catch (err) {
+            // Don't let logging failures affect the response
+            console.error("Failed to log rate limit hit:", err);
+        }
+    })();
+}
+
 /**
  * Helper: returns a 429 response with rate limit headers and reset info.
+ * Pass `context` to also log the rate-limit hit to RateLimitLog.
  */
-export function rateLimitResponse(reset: number) {
+export function rateLimitResponse(reset: number, context?: RateLimitLogContext) {
+    if (context) logRateLimitHit(context);
     return new Response(
         JSON.stringify({
             error: "Too many requests. Please try again later.",

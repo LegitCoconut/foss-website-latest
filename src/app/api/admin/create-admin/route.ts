@@ -4,6 +4,7 @@ import { z } from "zod";
 import dbConnect from "@/lib/db";
 import User from "@/models/User";
 import { auth } from "@/lib/auth";
+import { rateLimit, rateLimitResponse } from "@/lib/rate-limit";
 
 const createAdminSchema = z.object({
     name: z.string().min(2, "Name must be at least 2 characters"),
@@ -11,12 +12,18 @@ const createAdminSchema = z.object({
     password: z.string().min(6, "Password must be at least 6 characters"),
 });
 
-export async function GET() {
+const readLimiter = rateLimit({ interval: 60_000, limit: 30 });
+const writeLimiter = rateLimit({ interval: 3600_000, limit: 30 });
+
+export async function GET(req: Request) {
     try {
         const session = await auth();
         if (!session?.user || (session.user as { role?: string }).role !== "admin") {
             return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
         }
+
+        const rl = readLimiter.check(session.user.id);
+        if (!rl.success) return rateLimitResponse(rl.reset, { req, path: "/api/admin/create-admin", userId: session?.user?.id, userName: session?.user?.name, userEmail: session?.user?.email });
 
         await dbConnect();
         const admins = await User.find({ role: "admin" })
@@ -37,6 +44,9 @@ export async function PATCH(req: Request) {
         if (!session?.user || (session.user as { role?: string }).role !== "admin") {
             return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
         }
+
+        const rl = writeLimiter.check(session.user.id);
+        if (!rl.success) return rateLimitResponse(rl.reset, { req: req, path: "/api/admin/create-admin", userId: session?.user?.id, userName: session?.user?.name, userEmail: session?.user?.email });
 
         const body = await req.json();
         const { userId, newPassword } = body;
@@ -70,6 +80,9 @@ export async function POST(req: Request) {
         if (!session?.user || (session.user as { role?: string }).role !== "admin") {
             return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
         }
+
+        const rl = writeLimiter.check(session.user.id);
+        if (!rl.success) return rateLimitResponse(rl.reset, { req: req, path: "/api/admin/create-admin", userId: session?.user?.id, userName: session?.user?.name, userEmail: session?.user?.email });
 
         const body = await req.json();
         const validation = createAdminSchema.safeParse(body);
@@ -124,6 +137,9 @@ export async function DELETE(req: Request) {
         if (!session?.user || (session.user as { role?: string }).role !== "admin") {
             return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
         }
+
+        const rl = writeLimiter.check(session.user.id);
+        if (!rl.success) return rateLimitResponse(rl.reset, { req: req, path: "/api/admin/create-admin", userId: session?.user?.id, userName: session?.user?.name, userEmail: session?.user?.email });
 
         await dbConnect();
         const { userId, action, password } = await req.json();

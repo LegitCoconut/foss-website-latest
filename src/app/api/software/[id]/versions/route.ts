@@ -4,7 +4,10 @@ import dbConnect from "@/lib/db";
 import Software from "@/models/Software";
 import User from "@/models/User";
 import { deleteFile, getFileChecksum } from "@/lib/s3";
+import { rateLimit, rateLimitResponse } from "@/lib/rate-limit";
 import bcrypt from "bcryptjs";
+
+const limiter = rateLimit({ interval: 3600_000, limit: 120 });
 
 export async function POST(
     req: Request,
@@ -16,6 +19,9 @@ export async function POST(
         if (!session?.user || (session.user as { role?: string }).role !== "admin") {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
+
+        const rl = limiter.check(session.user.id);
+        if (!rl.success) return rateLimitResponse(rl.reset, { req: req, path: "/api/software/[id]/versions", userId: session?.user?.id, userName: session?.user?.name, userEmail: session?.user?.email });
 
         await dbConnect();
         const body = await req.json();
@@ -73,6 +79,9 @@ export async function PATCH(
         if (!session?.user || (session.user as { role?: string }).role !== "admin") {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
+
+        const rl = limiter.check(session.user.id);
+        if (!rl.success) return rateLimitResponse(rl.reset, { req: req, path: "/api/software/[id]/versions", userId: session?.user?.id, userName: session?.user?.name, userEmail: session?.user?.email });
 
         await dbConnect();
         const body = await req.json();
@@ -167,6 +176,9 @@ export async function DELETE(
         if (!session?.user || (session.user as { role?: string }).role !== "admin") {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
+
+        const rl = limiter.check(session.user.id);
+        if (!rl.success) return rateLimitResponse(rl.reset, { req: req, path: "/api/software/[id]/versions", userId: session?.user?.id, userName: session?.user?.name, userEmail: session?.user?.email });
 
         const { searchParams } = new URL(req.url);
         const versionId = searchParams.get("versionId");

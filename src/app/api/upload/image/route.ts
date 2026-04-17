@@ -1,9 +1,13 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { uploadFile } from "@/lib/s3";
+import { rateLimit, rateLimitResponse } from "@/lib/rate-limit";
 import crypto from "crypto";
 
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/svg+xml", "image/gif"];
+
+// 60 image uploads per hour per admin
+const limiter = rateLimit({ interval: 3600_000, limit: 60 });
 
 export async function POST(req: Request) {
     try {
@@ -11,6 +15,9 @@ export async function POST(req: Request) {
         if (!session?.user || (session.user as { role?: string }).role !== "admin") {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
+
+        const rl = limiter.check(session.user.id);
+        if (!rl.success) return rateLimitResponse(rl.reset, { req: req, path: "/api/upload/image", userId: session?.user?.id, userName: session?.user?.name, userEmail: session?.user?.email });
 
         const formData = await req.formData();
         const file = formData.get("file") as File;

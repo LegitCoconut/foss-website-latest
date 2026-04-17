@@ -6,13 +6,20 @@ import Software from "@/models/Software";
 import DownloadLog from "@/models/DownloadLog";
 import SoftwareRequest from "@/models/SoftwareRequest";
 import PageVisit from "@/models/PageVisit";
+import { rateLimit, rateLimitResponse } from "@/lib/rate-limit";
 
-export async function GET() {
+// Analytics runs lots of aggregations — rate limit per admin
+const limiter = rateLimit({ interval: 60_000, limit: 20 });
+
+export async function GET(req: Request) {
     try {
         const session = await auth();
         if (!session?.user || (session.user as { role?: string }).role !== "admin") {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
+
+        const rl = limiter.check(session.user.id);
+        if (!rl.success) return rateLimitResponse(rl.reset, { req, path: "/api/analytics", userId: session?.user?.id, userName: session?.user?.name, userEmail: session?.user?.email });
 
         await dbConnect();
 

@@ -110,6 +110,7 @@ export interface TeamItem {
     name: string;
     description: string;
     storageLimit: number;
+    maxFileSize?: number;
     status: "active" | "suspended";
     members: TeamMember[];
     memberCount: number;
@@ -123,6 +124,7 @@ export interface TeamFileItem {
     _id: string;
     teamId: string;
     uploadedBy: { _id: string; name: string; email: string };
+    sharedWith?: { _id: string; name: string; email: string }[] | string[];
     fileKey: string;
     fileName: string;
     fileSize: number;

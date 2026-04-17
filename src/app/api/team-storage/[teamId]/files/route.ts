@@ -6,25 +6,15 @@ import TeamFile from "@/models/TeamFile";
 import DownloadLog from "@/models/DownloadLog";
 import { getPresignedUploadUrl, deleteFile } from "@/lib/s3";
 import { rateLimit, rateLimitResponse } from "@/lib/rate-limit";
+import { SYSTEM_MAX_FILE_SIZE, BLOCKED_INLINE_CONTENT_TYPES } from "@/lib/team-storage-config";
 import crypto from "crypto";
 import path from "path";
 
 const uploadLimiter = rateLimit({ interval: 3600_000, limit: 60 }); // 60 uploads per hour
 const deleteLimiter = rateLimit({ interval: 3600_000, limit: 60 });
 
-// Max individual file size: 2 GB
-const MAX_FILE_SIZE = 2 * 1024 * 1024 * 1024;
 const MAX_FILENAME_LENGTH = 255;
 const MAX_DESCRIPTION_LENGTH = 500;
-
-// Dangerous content types that could enable stored XSS if served directly
-const BLOCKED_CONTENT_TYPES = [
-    "text/html",
-    "application/xhtml+xml",
-    "application/javascript",
-    "text/javascript",
-    "image/svg+xml",
-];
 
 // Sanitize filename: strip path components, null bytes, and control characters
 function sanitizeFileName(name: string): string {
@@ -66,12 +56,14 @@ export async function POST(
             return NextResponse.json({ error: "Team not found" }, { status: 404 });
         }
 
-        if (!team.members.some((m) => m.toString() === session.user!.id)) {
+        const isMember = team.members.some((m) => m.toString() === session.user!.id);
+        const isAdmin = (session.user as { role?: string }).role === "admin";
+        if (!isMember && !isAdmin) {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
         const rl = uploadLimiter.check(session.user!.id);
-        if (!rl.success) return rateLimitResponse(rl.reset);
+        if (!rl.success) return rateLimitResponse(rl.reset, { req: req, path: "/api/team-storage/[teamId]/files", userId: session?.user?.id, userName: session?.user?.name, userEmail: session?.user?.email });
 
         if (team.status === "suspended") {
             return NextResponse.json({ error: "Team is suspended — uploads are disabled" }, { status: 403 });
@@ -83,14 +75,18 @@ export async function POST(
             return NextResponse.json({ error: "fileName and fileSize are required" }, { status: 400 });
         }
 
+        // Effective per-file limit: team override or system default
+        const effectiveMax = team.maxFileSize ?? SYSTEM_MAX_FILE_SIZE;
+
         // Validate fileSize is a positive number within bounds
-        if (typeof fileSize !== "number" || fileSize <= 0 || fileSize > MAX_FILE_SIZE) {
-            return NextResponse.json({ error: `File size must be between 1 byte and ${MAX_FILE_SIZE / (1024 * 1024 * 1024)} GB` }, { status: 400 });
+        if (typeof fileSize !== "number" || fileSize <= 0 || fileSize > effectiveMax) {
+            const limitMB = Math.floor(effectiveMax / (1024 * 1024));
+            return NextResponse.json({ error: `File size must be between 1 byte and ${limitMB} MB (team limit)` }, { status: 400 });
         }
 
         // Sanitize inputs
         const fileName = sanitizeFileName(String(rawFileName));
-        const contentType = BLOCKED_CONTENT_TYPES.includes(String(rawContentType || "").toLowerCase())
+        const contentType = BLOCKED_INLINE_CONTENT_TYPES.has(String(rawContentType || "").toLowerCase())
             ? "application/octet-stream"
             : String(rawContentType || "application/octet-stream");
         const description = String(rawDescription || "").slice(0, MAX_DESCRIPTION_LENGTH).trim();
@@ -177,11 +173,13 @@ export async function DELETE(
             return NextResponse.json({ error: "Team not found" }, { status: 404 });
         }
 
-        if (!team.members.some((m) => m.toString() === session.user!.id)) {
+        const isMemberDel = team.members.some((m) => m.toString() === session.user!.id);
+        const isAdminDel = (session.user as { role?: string }).role === "admin";
+        if (!isMemberDel && !isAdminDel) {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
         const rl2 = deleteLimiter.check(session.user!.id);
-        if (!rl2.success) return rateLimitResponse(rl2.reset);
+        if (!rl2.success) return rateLimitResponse(rl2.reset, { req: req, path: "/api/team-storage/[teamId]/files", userId: session?.user?.id, userName: session?.user?.name, userEmail: session?.user?.email });
 
         const { fileId } = await req.json();
         if (!fileId) {
@@ -193,7 +191,8 @@ export async function DELETE(
             return NextResponse.json({ error: "File not found" }, { status: 404 });
         }
 
-        if (file.uploadedBy.toString() !== session.user.id) {
+        // Admins can delete any file; members can only delete their own
+        if (!isAdminDel && file.uploadedBy.toString() !== session.user.id) {
             return NextResponse.json({ error: "You can only delete your own files" }, { status: 403 });
         }
 

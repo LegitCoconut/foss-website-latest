@@ -13,7 +13,7 @@ export async function GET(
         const { key } = await params;
         const ip = getClientIp(req);
         const { success, reset } = limiter.check(ip);
-        if (!success) return rateLimitResponse(reset);
+        if (!success) return rateLimitResponse(reset, { req, path: "/api/assets/[...key]" });
 
         const objectKey = key.join("/");
 

@@ -3,7 +3,11 @@ import { auth } from "@/lib/auth";
 import dbConnect from "@/lib/db";
 import User from "@/models/User";
 import { verifyTotpCode } from "@/lib/totp";
+import { rateLimit, rateLimitResponse } from "@/lib/rate-limit";
 import bcrypt from "bcryptjs";
+
+// 5 disable attempts per 15 min per user — prevent brute force
+const limiter = rateLimit({ interval: 15 * 60_000, limit: 5 });
 
 export async function POST(request: Request) {
   try {
@@ -11,6 +15,9 @@ export async function POST(request: Request) {
     if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    const rl = limiter.check(session.user.id);
+    if (!rl.success) return rateLimitResponse(rl.reset, { req: request, path: "/api/auth/totp/disable", userId: session?.user?.id, userName: session?.user?.name, userEmail: session?.user?.email });
 
     const { password, code } = await request.json();
 

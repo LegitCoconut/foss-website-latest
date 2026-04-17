@@ -5,7 +5,12 @@ import Team from "@/models/Team";
 import TeamFile from "@/models/TeamFile";
 import User from "@/models/User";
 import { deleteFile } from "@/lib/s3";
+import { SYSTEM_MAX_FILE_SIZE, MIN_TEAM_MAX_FILE_SIZE } from "@/lib/team-storage-config";
+import { rateLimit, rateLimitResponse } from "@/lib/rate-limit";
 import bcrypt from "bcryptjs";
+
+const readLimiter = rateLimit({ interval: 60_000, limit: 60 });
+const writeLimiter = rateLimit({ interval: 3600_000, limit: 120 });
 
 export async function GET(
     req: Request,
@@ -17,6 +22,9 @@ export async function GET(
         if (!session?.user || (session.user as { role?: string }).role !== "admin") {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
+
+        const rl = readLimiter.check(session.user.id);
+        if (!rl.success) return rateLimitResponse(rl.reset, { req: req, path: "/api/admin/team-storage/[id]", userId: session?.user?.id, userName: session?.user?.name, userEmail: session?.user?.email });
 
         await dbConnect();
 
@@ -58,10 +66,33 @@ export async function PUT(
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
+        const rl = writeLimiter.check(session.user.id);
+        if (!rl.success) return rateLimitResponse(rl.reset, { req: req, path: "/api/admin/team-storage/[id]", userId: session?.user?.id, userName: session?.user?.name, userEmail: session?.user?.email });
+
         await dbConnect();
         const body = await req.json();
 
-        const team = await Team.findByIdAndUpdate(id, body, {
+        // Explicit allowlist of updatable fields
+        const allowed = ["name", "description", "storageLimit", "maxFileSize", "status"];
+        const updates: Record<string, unknown> = {};
+        for (const k of allowed) {
+            if (k in body) updates[k] = body[k];
+        }
+
+        // Validate maxFileSize: null clears override, otherwise must be within bounds
+        if ("maxFileSize" in updates) {
+            const v = updates.maxFileSize;
+            if (v === null || v === undefined || v === 0) {
+                updates.maxFileSize = null; // clear override
+            } else if (typeof v !== "number" || !Number.isFinite(v) || v < MIN_TEAM_MAX_FILE_SIZE || v > SYSTEM_MAX_FILE_SIZE) {
+                return NextResponse.json(
+                    { error: `maxFileSize must be between ${MIN_TEAM_MAX_FILE_SIZE} and ${SYSTEM_MAX_FILE_SIZE} bytes, or null` },
+                    { status: 400 }
+                );
+            }
+        }
+
+        const team = await Team.findByIdAndUpdate(id, updates, {
             returnDocument: "after",
             runValidators: true,
         }).populate("members", "name email");
@@ -87,6 +118,9 @@ export async function DELETE(
         if (!session?.user || (session.user as { role?: string }).role !== "admin") {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
+
+        const rl = writeLimiter.check(session.user.id);
+        if (!rl.success) return rateLimitResponse(rl.reset, { req: req, path: "/api/admin/team-storage/[id]", userId: session?.user?.id, userName: session?.user?.name, userEmail: session?.user?.email });
 
         await dbConnect();
 

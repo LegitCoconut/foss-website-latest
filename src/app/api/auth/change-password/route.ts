@@ -15,7 +15,7 @@ export async function POST(req: Request) {
         }
 
         const rl = limiter.check(session.user.id);
-        if (!rl.success) return rateLimitResponse(rl.reset);
+        if (!rl.success) return rateLimitResponse(rl.reset, { req: req, path: "/api/auth/change-password", userId: session?.user?.id, userName: session?.user?.name, userEmail: session?.user?.email });
 
         const { currentPassword, newPassword } = await req.json();
 

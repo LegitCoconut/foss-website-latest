@@ -3,6 +3,9 @@ import { auth } from "@/lib/auth";
 import dbConnect from "@/lib/db";
 import Team from "@/models/Team";
 import User from "@/models/User";
+import { rateLimit, rateLimitResponse } from "@/lib/rate-limit";
+
+const limiter = rateLimit({ interval: 3600_000, limit: 120 });
 
 export async function POST(
     req: Request,
@@ -14,6 +17,9 @@ export async function POST(
         if (!session?.user || (session.user as { role?: string }).role !== "admin") {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
+
+        const rl = limiter.check(session.user.id);
+        if (!rl.success) return rateLimitResponse(rl.reset, { req: req, path: "/api/admin/team-storage/[id]/members", userId: session?.user?.id, userName: session?.user?.name, userEmail: session?.user?.email });
 
         await dbConnect();
         const { userId } = await req.json();
@@ -54,6 +60,9 @@ export async function DELETE(
         if (!session?.user || (session.user as { role?: string }).role !== "admin") {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
+
+        const rl = limiter.check(session.user.id);
+        if (!rl.success) return rateLimitResponse(rl.reset, { req: req, path: "/api/admin/team-storage/[id]/members", userId: session?.user?.id, userName: session?.user?.name, userEmail: session?.user?.email });
 
         await dbConnect();
         const { userId } = await req.json();

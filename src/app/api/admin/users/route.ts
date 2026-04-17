@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import dbConnect from "@/lib/db";
 import User from "@/models/User";
+import { rateLimit, rateLimitResponse } from "@/lib/rate-limit";
+
+const readLimiter = rateLimit({ interval: 60_000, limit: 60 });
+const writeLimiter = rateLimit({ interval: 3600_000, limit: 100 });
 
 export async function GET(req: Request) {
     try {
@@ -9,6 +13,9 @@ export async function GET(req: Request) {
         if (!session?.user || (session.user as { role?: string }).role !== "admin") {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
+
+        const rl = readLimiter.check(session.user.id);
+        if (!rl.success) return rateLimitResponse(rl.reset, { req: req, path: "/api/admin/users", userId: session?.user?.id, userName: session?.user?.name, userEmail: session?.user?.email });
 
         await dbConnect();
 
@@ -48,6 +55,9 @@ export async function PATCH(req: Request) {
         if (!session?.user || (session.user as { role?: string }).role !== "admin") {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
+
+        const rl = writeLimiter.check(session.user.id);
+        if (!rl.success) return rateLimitResponse(rl.reset, { req: req, path: "/api/admin/users", userId: session?.user?.id, userName: session?.user?.name, userEmail: session?.user?.email });
 
         await dbConnect();
         const body = await req.json();

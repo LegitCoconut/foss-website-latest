@@ -21,7 +21,7 @@ export async function GET(
         }
 
         const { success, reset } = limiter.check(session.user.id);
-        if (!success) return rateLimitResponse(reset);
+        if (!success) return rateLimitResponse(reset, { req: req, path: "/api/download/[versionId]", userId: session?.user?.id, userName: session?.user?.name, userEmail: session?.user?.email });
 
         await dbConnect();
 

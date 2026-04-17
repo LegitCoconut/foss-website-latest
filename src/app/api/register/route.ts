@@ -18,7 +18,7 @@ export async function POST(req: Request) {
     try {
         const ip = getClientIp(req);
         const { success, reset } = limiter.check(ip);
-        if (!success) return rateLimitResponse(reset);
+        if (!success) return rateLimitResponse(reset, { req, path: "/api/register" });
 
         const body = await req.json();
         const validation = registerSchema.safeParse(body);

@@ -15,7 +15,7 @@ export async function GET(req: Request) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
         const rl = readLimiter.check(session.user.id);
-        if (!rl.success) return rateLimitResponse(rl.reset);
+        if (!rl.success) return rateLimitResponse(rl.reset, { req: req, path: "/api/requests", userId: session?.user?.id, userName: session?.user?.name, userEmail: session?.user?.email });
 
         await dbConnect();
 
@@ -71,7 +71,7 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
         const rl2 = writeLimiter.check(session.user.id);
-        if (!rl2.success) return rateLimitResponse(rl2.reset);
+        if (!rl2.success) return rateLimitResponse(rl2.reset, { req: req, path: "/api/requests", userId: session?.user?.id, userName: session?.user?.name, userEmail: session?.user?.email });
 
         await dbConnect();
         const body = await req.json();
